@@ -18,14 +18,15 @@
         <?php settings_fields('imgpress_wp'); ?>
 
         <?php
-        $opts    = get_option('imgpress_wp_options', []);
-        $apiUrl  = $opts['api_url']         ?? 'http://localhost:3000';
-        $auto    = !empty($opts['auto_compress']);
-        $quality = (int) ($opts['quality']  ?? 80);
-        $format  = $opts['format']          ?? 'webp';
-        $width   = (int) ($opts['max_width'] ?? 1600);
-        $types   = (array) ($opts['enabled_types'] ?? ['image','pdf','audio','video']);
-        $timeout = (int) ($opts['request_timeout'] ?? 120);
+        $opts       = get_option('imgpress_wp_options', []);
+        $apiUrl     = $opts['api_url']         ?? 'http://localhost:3000';
+        $licenseKey = $opts['license_key']     ?? '';
+        $auto       = !empty($opts['auto_compress']);
+        $quality    = (int) ($opts['quality']  ?? 80);
+        $format     = $opts['format']          ?? 'webp';
+        $width      = (int) ($opts['max_width'] ?? 1600);
+        $types      = (array) ($opts['enabled_types'] ?? ['image','pdf','audio','video']);
+        $timeout    = (int) ($opts['request_timeout'] ?? 120);
         ?>
 
         <div class="ip-card">
@@ -48,6 +49,20 @@
                 </div>
                 <span class="ip-help">No trailing slash. Use the internal Docker hostname if WordPress and imgpress share a network.</span>
                 <span id="ip-conn-result" class="ip-conn-result"></span>
+            </div>
+
+            <div class="ip-field">
+                <label class="ip-label" for="ip_license_key">License Key</label>
+                <input
+                    type="password"
+                    id="ip_license_key"
+                    name="imgpress_wp_options[license_key]"
+                    value="<?php echo esc_attr($licenseKey); ?>"
+                    class="ip-input"
+                    placeholder="Leave empty if your server has no API_KEYS configured"
+                    autocomplete="off"
+                />
+                <span class="ip-help">Sent as <code>X-API-Key</code> with every request. Must match a key in <code>API_KEYS</code> on your imgpress server.</span>
             </div>
 
             <div class="ip-field">

@@ -43,9 +43,16 @@ class Api_Client
             'width'   => $width,
         ], "{$apiUrl}/api/compress");
 
+        $headers = ['Content-Type' => "multipart/form-data; boundary={$boundary}"];
+
+        $licenseKey = $this->settings->getLicenseKey();
+        if ($licenseKey !== '') {
+            $headers['X-API-Key'] = $licenseKey;
+        }
+
         $response = wp_remote_post($compressUrl, [
             'timeout' => $timeout,
-            'headers' => ['Content-Type' => "multipart/form-data; boundary={$boundary}"],
+            'headers' => $headers,
             'body'    => $body,
         ]);
 
@@ -63,7 +70,11 @@ class Api_Client
         }
 
         $downloadUrl = $apiUrl . $result['downloadUrl'];
-        $download    = wp_remote_get($downloadUrl, ['timeout' => $timeout]);
+        $downloadHeaders = [];
+        if ($licenseKey !== '') {
+            $downloadHeaders['X-API-Key'] = $licenseKey;
+        }
+        $download = wp_remote_get($downloadUrl, ['timeout' => $timeout, 'headers' => $downloadHeaders]);
 
         if (is_wp_error($download)) {
             error_log('[ImgPress] Download error: ' . $download->get_error_message());
