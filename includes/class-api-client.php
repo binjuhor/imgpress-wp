@@ -43,11 +43,11 @@ class Api_Client
             'width'   => $width,
         ], "{$apiUrl}/api/compress");
 
-        $headers = ['Content-Type' => "multipart/form-data; boundary={$boundary}"];
+        $siteHost = wp_parse_url(home_url(), PHP_URL_HOST) ?: '';
+        $headers  = ['Content-Type' => "multipart/form-data; boundary={$boundary}"];
 
-        $licenseKey = $this->settings->getLicenseKey();
-        if ($licenseKey !== '') {
-            $headers['X-API-Key'] = $licenseKey;
+        if ($siteHost !== '') {
+            $headers['X-Site-Domain'] = $siteHost;
         }
 
         $response = wp_remote_post($compressUrl, [
@@ -69,12 +69,12 @@ class Api_Client
             return null;
         }
 
-        $downloadUrl = $apiUrl . $result['downloadUrl'];
-        $downloadHeaders = [];
-        if ($licenseKey !== '') {
-            $downloadHeaders['X-API-Key'] = $licenseKey;
+        $downloadUrl  = $apiUrl . $result['downloadUrl'];
+        $downloadArgs = ['timeout' => $timeout];
+        if ($siteHost !== '') {
+            $downloadArgs['headers'] = ['X-Site-Domain' => $siteHost];
         }
-        $download = wp_remote_get($downloadUrl, ['timeout' => $timeout, 'headers' => $downloadHeaders]);
+        $download = wp_remote_get($downloadUrl, $downloadArgs);
 
         if (is_wp_error($download)) {
             error_log('[ImgPress] Download error: ' . $download->get_error_message());

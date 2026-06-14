@@ -1,64 +1,58 @@
 <?php defined('ABSPATH') || exit; ?>
-<div class="wrap ip-wrap">
-    <div class="ip-header">
-        <svg class="ip-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="40" height="40" rx="8" fill="#00ff88" fill-opacity="0.12"/>
-            <path d="M12 28L20 12L28 28" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M15 22H25" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-        <div>
-            <h1 class="ip-title">Bulk Compress</h1>
-            <p class="ip-subtitle">Compress all unoptimized media in your library</p>
-        </div>
-    </div>
+<div class="wrap">
+    <h1><?php esc_html_e('Bulk Compress', 'imgpress-wp'); ?></h1>
+    <p class="description"><?php esc_html_e('Compress all unoptimized media in your library.', 'imgpress-wp'); ?></p>
 
-    <div class="ip-card" id="ip-bulk-start-card">
-        <div class="ip-stats-row">
-            <div class="ip-stat">
-                <span class="ip-stat__val" id="ip-uncompressed-count">—</span>
-                <span class="ip-stat__label">Uncompressed files</span>
-            </div>
-            <div class="ip-stat">
-                <span class="ip-stat__val" id="ip-done-count">0</span>
-                <span class="ip-stat__label">Compressed this run</span>
-            </div>
-            <div class="ip-stat">
-                <span class="ip-stat__val ip-stat__val--accent" id="ip-saved-total">0 KB</span>
-                <span class="ip-stat__label">Total saved</span>
-            </div>
-            <div class="ip-stat">
-                <span class="ip-stat__val ip-stat__val--accent" id="ip-avg-ratio">—</span>
-                <span class="ip-stat__label">Avg reduction</span>
-            </div>
-        </div>
-
-        <div class="ip-progress-wrap" id="ip-progress-wrap" style="display:none">
-            <div class="ip-progress">
-                <div class="ip-progress__bar" id="ip-progress-bar" style="width:0%"></div>
-            </div>
-            <span class="ip-progress__label" id="ip-progress-label">Starting…</span>
-        </div>
-
-        <div class="ip-actions">
-            <button id="ip-bulk-btn" class="ip-btn ip-btn--primary" disabled>
-                Start Bulk Compress
-            </button>
-            <span class="ip-bulk-status" id="ip-bulk-status"></span>
-        </div>
-    </div>
-
-    <div class="ip-card" id="ip-results-card" style="display:none">
-        <h2 class="ip-card__title">Results</h2>
-        <table class="ip-table">
+    <div class="card" style="max-width:800px;margin-top:16px;padding:20px 24px">
+        <table class="widefat" style="margin-bottom:20px;table-layout:fixed">
             <thead>
                 <tr>
-                    <th>File</th>
-                    <th>Before</th>
-                    <th>After</th>
-                    <th>Saved</th>
+                    <th><?php esc_html_e('Uncompressed files', 'imgpress-wp'); ?></th>
+                    <th><?php esc_html_e('Compressed this run', 'imgpress-wp'); ?></th>
+                    <th><?php esc_html_e('Total saved', 'imgpress-wp'); ?></th>
+                    <th><?php esc_html_e('Avg reduction', 'imgpress-wp'); ?></th>
                 </tr>
             </thead>
-            <tbody id="ip-results-tbody"></tbody>
+            <tbody>
+                <tr>
+                    <td id="ip-uncompressed-count">—</td>
+                    <td id="ip-done-count">0</td>
+                    <td id="ip-saved-total">0 KB</td>
+                    <td id="ip-avg-ratio">—</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div id="ip-progress-wrap" style="display:none;margin-bottom:16px">
+            <div style="background:#dcdcde;border-radius:3px;height:8px;overflow:hidden">
+                <div id="ip-progress-bar" style="height:100%;background:#2271b1;width:0%;transition:width .3s ease"></div>
+            </div>
+            <p class="description" id="ip-progress-label" style="margin-top:6px">
+                <?php esc_html_e('Starting…', 'imgpress-wp'); ?>
+            </p>
+        </div>
+
+        <p>
+            <button id="ip-bulk-btn" class="button button-primary" disabled>
+                <?php esc_html_e('Start Bulk Compress', 'imgpress-wp'); ?>
+            </button>
+            <span id="ip-bulk-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
+        </p>
+    </div>
+
+    <div id="ip-results-card" style="display:none;margin-top:24px">
+        <h2><?php esc_html_e('Results', 'imgpress-wp'); ?></h2>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e('File', 'imgpress-wp'); ?></th>
+                    <th style="width:100px"><?php esc_html_e('Before', 'imgpress-wp'); ?></th>
+                    <th style="width:100px"><?php esc_html_e('After', 'imgpress-wp'); ?></th>
+                    <th style="width:120px"><?php esc_html_e('Saved', 'imgpress-wp'); ?></th>
+                </tr>
+            </thead>
+            <tbody id="ip-results-tbody">
+            </tbody>
         </table>
     </div>
 </div>

@@ -3,7 +3,7 @@
  * Plugin Name: ImgPress
  * Plugin URI:  https://github.com/binjuhor/imgpress
  * Description: Automatically compress images, PDFs, audio, and video via the imgpress API.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Hoang Kiem
  * License:     MIT
  * Text Domain: imgpress-wp
@@ -11,7 +11,7 @@
 
 defined('ABSPATH') || exit;
 
-define('IMGPRESS_WP_VERSION', '1.0.0');
+define('IMGPRESS_WP_VERSION', '1.1.0');
 define('IMGPRESS_WP_DIR', plugin_dir_path(__FILE__));
 define('IMGPRESS_WP_URL', plugin_dir_url(__FILE__));
 

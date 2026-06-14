@@ -41,7 +41,6 @@ class Settings
     {
         return [
             'api_url'         => esc_url_raw(rtrim($input['api_url'] ?? '', '/')),
-            'license_key'     => sanitize_text_field($input['license_key'] ?? ''),
             'auto_compress'   => !empty($input['auto_compress']),
             'quality'         => max(1, min(100, (int) ($input['quality'] ?? 80))),
             'format'          => in_array($input['format'] ?? '', ['webp', 'avif', 'jpeg', 'auto'], true)
@@ -81,11 +80,6 @@ class Settings
     public function getApiUrl(): string
     {
         return $this->options['api_url'] ?? 'http://localhost:3000';
-    }
-
-    public function getLicenseKey(): string
-    {
-        return $this->options['license_key'] ?? '';
     }
 
     public function isAutoCompress(): bool

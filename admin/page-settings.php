@@ -1,104 +1,90 @@
 <?php defined('ABSPATH') || exit; ?>
-<div class="wrap ip-wrap">
-    <div class="ip-header">
-        <svg class="ip-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="40" height="40" rx="8" fill="#00ff88" fill-opacity="0.12"/>
-            <path d="M12 28L20 12L28 28" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M15 22H25" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-        <div>
-            <h1 class="ip-title">ImgPress</h1>
-            <p class="ip-subtitle">Media compression via the imgpress API</p>
-        </div>
-    </div>
+<div class="wrap">
+    <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
 
     <?php settings_errors('imgpress_wp_options'); ?>
 
-    <form method="post" action="options.php" class="ip-form">
+    <form method="post" action="options.php">
         <?php settings_fields('imgpress_wp'); ?>
 
         <?php
-        $opts       = get_option('imgpress_wp_options', []);
-        $apiUrl     = $opts['api_url']         ?? 'http://localhost:3000';
-        $licenseKey = $opts['license_key']     ?? '';
-        $auto       = !empty($opts['auto_compress']);
-        $quality    = (int) ($opts['quality']  ?? 80);
-        $format     = $opts['format']          ?? 'webp';
+        $opts   = get_option('imgpress_wp_options', []);
+        $apiUrl = $opts['api_url']        ?? 'http://localhost:3000';
+        $auto   = !empty($opts['auto_compress']);
+        $quality    = (int) ($opts['quality'] ?? 80);
+        $format     = $opts['format']         ?? 'webp';
         $width      = (int) ($opts['max_width'] ?? 1600);
-        $types      = (array) ($opts['enabled_types'] ?? ['image','pdf','audio','video']);
+        $types      = (array) ($opts['enabled_types'] ?? ['image', 'pdf', 'audio', 'video']);
         $timeout    = (int) ($opts['request_timeout'] ?? 120);
         ?>
 
-        <div class="ip-card">
-            <h2 class="ip-card__title">Connection</h2>
-
-            <div class="ip-field">
-                <label class="ip-label" for="ip_api_url">API URL</label>
-                <div class="ip-input-group">
+        <h2 class="title"><?php esc_html_e('Connection', 'imgpress-wp'); ?></h2>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row">
+                    <label for="ip_api_url"><?php esc_html_e('API URL', 'imgpress-wp'); ?></label>
+                </th>
+                <td>
                     <input
                         type="url"
                         id="ip_api_url"
                         name="imgpress_wp_options[api_url]"
                         value="<?php echo esc_attr($apiUrl); ?>"
-                        class="ip-input"
+                        class="regular-text"
                         placeholder="http://localhost:3000"
                     />
-                    <button type="button" class="ip-btn ip-btn--ghost" id="ip-test-conn">
-                        Test Connection
+                    <button type="button" class="button" id="ip-test-conn" style="margin-left:6px">
+                        <?php esc_html_e('Test Connection', 'imgpress-wp'); ?>
                     </button>
-                </div>
-                <span class="ip-help">No trailing slash. Use the internal Docker hostname if WordPress and imgpress share a network.</span>
-                <span id="ip-conn-result" class="ip-conn-result"></span>
-            </div>
-
-            <div class="ip-field">
-                <label class="ip-label" for="ip_license_key">License Key</label>
-                <input
-                    type="password"
-                    id="ip_license_key"
-                    name="imgpress_wp_options[license_key]"
-                    value="<?php echo esc_attr($licenseKey); ?>"
-                    class="ip-input"
-                    placeholder="Leave empty if your server has no API_KEYS configured"
-                    autocomplete="off"
-                />
-                <span class="ip-help">Sent as <code>X-API-Key</code> with every request. Must match a key in <code>API_KEYS</code> on your imgpress server.</span>
-            </div>
-
-            <div class="ip-field">
-                <label class="ip-label" for="ip_timeout">Request Timeout</label>
-                <input
-                    type="number"
-                    id="ip_timeout"
-                    name="imgpress_wp_options[request_timeout]"
-                    value="<?php echo esc_attr($timeout); ?>"
-                    class="ip-input ip-input--sm"
-                    min="10"
-                    max="600"
-                /> <span class="ip-unit">seconds</span>
-            </div>
-        </div>
-
-        <div class="ip-card">
-            <h2 class="ip-card__title">Compression</h2>
-
-            <div class="ip-field">
-                <label class="ip-label ip-label--toggle">
+                    <span id="ip-conn-result" style="margin-left:8px;font-size:13px"></span>
+                    <p class="description">
+                        <?php esc_html_e('No trailing slash. Use the internal Docker hostname if WordPress and imgpress share a network.', 'imgpress-wp'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="ip_timeout"><?php esc_html_e('Request Timeout', 'imgpress-wp'); ?></label>
+                </th>
+                <td>
                     <input
-                        type="checkbox"
-                        name="imgpress_wp_options[auto_compress]"
-                        value="1"
-                        <?php checked($auto); ?>
-                        class="ip-toggle-input"
+                        type="number"
+                        id="ip_timeout"
+                        name="imgpress_wp_options[request_timeout]"
+                        value="<?php echo esc_attr($timeout); ?>"
+                        class="small-text"
+                        min="10"
+                        max="600"
                     />
-                    <span class="ip-toggle"></span>
-                    Auto-compress on upload
-                </label>
-            </div>
+                    <span class="description" style="display:inline;margin-left:4px">
+                        <?php esc_html_e('seconds', 'imgpress-wp'); ?>
+                    </span>
+                </td>
+            </tr>
+        </table>
 
-            <div class="ip-field">
-                <label class="ip-label" for="ip_quality">Quality</label>
-                <div class="ip-slider-wrap">
+        <h2 class="title"><?php esc_html_e('Compression', 'imgpress-wp'); ?></h2>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><?php esc_html_e('Auto-compress', 'imgpress-wp'); ?></th>
+                <td>
+                    <label for="ip_auto_compress">
+                        <input
+                            type="checkbox"
+                            id="ip_auto_compress"
+                            name="imgpress_wp_options[auto_compress]"
+                            value="1"
+                            <?php checked($auto); ?>
+                        />
+                        <?php esc_html_e('Compress automatically on upload', 'imgpress-wp'); ?>
+                    </label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="ip_quality"><?php esc_html_e('Quality', 'imgpress-wp'); ?></label>
+                </th>
+                <td>
                     <input
                         type="range"
                         id="ip_quality"
@@ -106,106 +92,115 @@
                         value="<?php echo esc_attr($quality); ?>"
                         min="1"
                         max="100"
-                        class="ip-slider"
+                        style="width:200px;vertical-align:middle"
                     />
-                    <span class="ip-slider-val" id="ip-quality-val"><?php echo esc_html($quality); ?></span>
-                </div>
-            </div>
-
-            <div class="ip-field">
-                <label class="ip-label" for="ip_format">Output Format</label>
-                <select id="ip_format" name="imgpress_wp_options[format]" class="ip-select">
-                    <?php foreach (['webp' => 'WebP', 'avif' => 'AVIF', 'jpeg' => 'JPEG', 'auto' => 'Auto (keep original)'] as $val => $label): ?>
-                        <option value="<?php echo esc_attr($val); ?>" <?php selected($format, $val); ?>>
-                            <?php echo esc_html($label); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="ip-field">
-                <label class="ip-label" for="ip_width">Max Width</label>
-                <input
-                    type="number"
-                    id="ip_width"
-                    name="imgpress_wp_options[max_width]"
-                    value="<?php echo esc_attr($width); ?>"
-                    class="ip-input ip-input--sm"
-                    min="100"
-                    max="20000"
-                /> <span class="ip-unit">px (images only)</span>
-            </div>
-        </div>
-
-        <div class="ip-card">
-            <h2 class="ip-card__title">File Types</h2>
-            <div class="ip-types-grid">
-                <?php
-                $typeLabels = [
-                    'image' => ['label' => 'Images', 'sub' => 'JPEG · PNG · WebP · HEIC · AVIF · GIF'],
-                    'pdf'   => ['label' => 'PDFs',   'sub' => 'Compressed via Ghostscript'],
-                    'audio' => ['label' => 'Audio',  'sub' => 'MP3 · WAV · FLAC → M4A'],
-                    'video' => ['label' => 'Video',  'sub' => 'MP4 · MOV · AVI → MP4'],
-                ];
-                foreach ($typeLabels as $val => $info):
-                ?>
-                <label class="ip-type-card <?php echo in_array($val, $types, true) ? 'is-checked' : ''; ?>">
+                    <strong id="ip-quality-val" style="margin-left:8px"><?php echo esc_html($quality); ?></strong>
+                    <p class="description">
+                        <?php esc_html_e('1 (smallest file) — 100 (best quality). Default: 80.', 'imgpress-wp'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="ip_format"><?php esc_html_e('Output Format', 'imgpress-wp'); ?></label>
+                </th>
+                <td>
+                    <select id="ip_format" name="imgpress_wp_options[format]">
+                        <?php foreach (['webp' => 'WebP', 'avif' => 'AVIF', 'jpeg' => 'JPEG', 'auto' => 'Auto (keep original)'] as $val => $label): ?>
+                            <option value="<?php echo esc_attr($val); ?>" <?php selected($format, $val); ?>>
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="ip_width"><?php esc_html_e('Max Width', 'imgpress-wp'); ?></label>
+                </th>
+                <td>
                     <input
-                        type="checkbox"
-                        name="imgpress_wp_options[enabled_types][]"
-                        value="<?php echo esc_attr($val); ?>"
-                        <?php checked(in_array($val, $types, true)); ?>
+                        type="number"
+                        id="ip_width"
+                        name="imgpress_wp_options[max_width]"
+                        value="<?php echo esc_attr($width); ?>"
+                        class="small-text"
+                        min="100"
+                        max="20000"
                     />
-                    <span class="ip-type-label"><?php echo esc_html($info['label']); ?></span>
-                    <span class="ip-type-sub"><?php echo esc_html($info['sub']); ?></span>
-                </label>
-                <?php endforeach; ?>
-            </div>
-        </div>
+                    <span class="description" style="display:inline;margin-left:4px">
+                        <?php esc_html_e('px — images only', 'imgpress-wp'); ?>
+                    </span>
+                </td>
+            </tr>
+        </table>
 
-        <div class="ip-actions">
-            <?php submit_button('Save Changes', 'primary', 'submit', false, ['class' => 'ip-btn ip-btn--primary']); ?>
-            <a href="<?php echo esc_url(admin_url('upload.php?page=imgpress-bulk')); ?>" class="ip-btn ip-btn--ghost">
-                Bulk Compress →
+        <h2 class="title"><?php esc_html_e('File Types', 'imgpress-wp'); ?></h2>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable for', 'imgpress-wp'); ?></th>
+                <td>
+                    <?php
+                    $typeLabels = [
+                        'image' => ['label' => __('Images', 'imgpress-wp'), 'sub' => 'JPEG · PNG · WebP · HEIC · AVIF · GIF'],
+                        'pdf'   => ['label' => __('PDFs', 'imgpress-wp'),   'sub' => 'Compressed via Ghostscript'],
+                        'audio' => ['label' => __('Audio', 'imgpress-wp'),  'sub' => 'MP3 · WAV · FLAC → M4A'],
+                        'video' => ['label' => __('Video', 'imgpress-wp'),  'sub' => 'MP4 · MOV · AVI → MP4'],
+                    ];
+                    foreach ($typeLabels as $val => $info): ?>
+                    <label style="display:block;margin-bottom:10px">
+                        <input
+                            type="checkbox"
+                            name="imgpress_wp_options[enabled_types][]"
+                            value="<?php echo esc_attr($val); ?>"
+                            <?php checked(in_array($val, $types, true)); ?>
+                        />
+                        <strong><?php echo esc_html($info['label']); ?></strong>
+                        &mdash;
+                        <span class="description" style="display:inline">
+                            <?php echo esc_html($info['sub']); ?>
+                        </span>
+                    </label>
+                    <?php endforeach; ?>
+                </td>
+            </tr>
+        </table>
+
+        <p class="submit">
+            <?php submit_button(__('Save Changes', 'imgpress-wp'), 'primary', 'submit', false); ?>
+            <a href="<?php echo esc_url(admin_url('upload.php?page=imgpress-bulk')); ?>" class="button" style="margin-left:8px">
+                <?php esc_html_e('Bulk Compress →', 'imgpress-wp'); ?>
             </a>
-        </div>
+        </p>
     </form>
 </div>
 
 <script>
-(function($) {
-    // Quality slider live value
-    $('#ip_quality').on('input', function() {
+(function ($) {
+    $('#ip_quality').on('input', function () {
         $('#ip-quality-val').text(this.value);
     });
 
-    // Type card toggle visual
-    $('.ip-type-card input').on('change', function() {
-        $(this).closest('.ip-type-card').toggleClass('is-checked', this.checked);
-    });
+    $('#ip-test-conn').on('click', function () {
+        var $btn    = $(this);
+        var $result = $('#ip-conn-result');
 
-    // Test connection
-    $('#ip-test-conn').on('click', function() {
-        const $btn    = $(this);
-        const $result = $('#ip-conn-result');
-        const url     = $('#ip_api_url').val();
-
-        $btn.prop('disabled', true).text('Testing…');
-        $result.removeClass('ip-conn-result--ok ip-conn-result--err').text('');
+        $btn.prop('disabled', true).text('<?php echo esc_js(__('Testing…', 'imgpress-wp')); ?>');
+        $result.css('color', '').text('');
 
         $.post(ajaxurl, {
-            action: 'imgpress_test_connection',
-            _ajax_nonce: '<?php echo wp_create_nonce("imgpress_test_connection"); ?>'
-        }, function(res) {
+            action:      'imgpress_test_connection',
+            _ajax_nonce: '<?php echo wp_create_nonce('imgpress_test_connection'); ?>',
+        }, function (res) {
             if (res.success) {
-                $result.addClass('ip-conn-result--ok').text('✓ Connected');
+                $result.css('color', '#00a32a').text('✓ <?php echo esc_js(__('Connected', 'imgpress-wp')); ?>');
             } else {
-                $result.addClass('ip-conn-result--err').text('✗ ' + (res.data || 'Failed'));
+                $result.css('color', '#d63638').text('✗ ' + (res.data || '<?php echo esc_js(__('Failed', 'imgpress-wp')); ?>'));
             }
-        }).fail(function() {
-            $result.addClass('ip-conn-result--err').text('✗ Request failed');
-        }).always(function() {
-            $btn.prop('disabled', false).text('Test Connection');
+        }).fail(function () {
+            $result.css('color', '#d63638').text('✗ <?php echo esc_js(__('Request failed', 'imgpress-wp')); ?>');
+        }).always(function () {
+            $btn.prop('disabled', false).text('<?php echo esc_js(__('Test Connection', 'imgpress-wp')); ?>');
         });
     });
 })(jQuery);
