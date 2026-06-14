@@ -11,9 +11,9 @@
 
 defined('ABSPATH') || exit;
 
-define('IMGPRESS_WP_VERSION', '1.1.0');
-define('IMGPRESS_WP_DIR', plugin_dir_path(__FILE__));
-define('IMGPRESS_WP_URL', plugin_dir_url(__FILE__));
+defined('IMGPRESS_WP_VERSION') || define('IMGPRESS_WP_VERSION', '1.1.0');
+defined('IMGPRESS_WP_DIR')     || define('IMGPRESS_WP_DIR', plugin_dir_path(__FILE__));
+defined('IMGPRESS_WP_URL')     || define('IMGPRESS_WP_URL', plugin_dir_url(__FILE__));
 
 spl_autoload_register(function (string $class): void {
     if (!str_starts_with($class, 'ImgPress\\')) {
