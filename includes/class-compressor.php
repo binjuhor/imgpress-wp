@@ -30,6 +30,10 @@ class Compressor
             return false;
         }
 
+        if ($result['compressedSize'] > $result['originalSize']) {
+            return false;
+        }
+
         file_put_contents($filePath, $result['data']);
 
         update_post_meta($attachmentId, '_imgpress_original_size',   $result['originalSize']);
