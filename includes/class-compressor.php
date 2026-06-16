@@ -8,7 +8,8 @@ class Compressor
 {
     public function __construct(
         private Api_Client $apiClient,
-        private Settings   $settings
+        private Settings   $settings,
+        private R2_Uploader $r2Uploader
     ) {}
 
     public function compress(int $attachmentId): bool
@@ -45,6 +46,11 @@ class Compressor
         if (str_starts_with($mime, 'image/')) {
             $metadata = wp_generate_attachment_metadata($attachmentId, $filePath);
             wp_update_attachment_metadata($attachmentId, $metadata);
+        }
+
+        // Push to R2 if enabled
+        if ($this->settings->isR2PushOnCompress()) {
+            $this->r2Uploader->upload($attachmentId);
         }
 
         return true;

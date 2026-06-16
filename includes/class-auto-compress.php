@@ -7,8 +7,8 @@ defined('ABSPATH') || exit;
 class Auto_Compress
 {
     public function __construct(
-        private Api_Client  $apiClient,
         private Compressor  $compressor,
+        private R2_Uploader $r2Uploader,
         private Settings    $settings
     ) {
         add_filter('wp_handle_upload', [$this, 'handleUpload']);
@@ -17,8 +17,8 @@ class Auto_Compress
 
     /**
      * Fires immediately after a file is uploaded to disk, before the attachment
-     * post exists. We compress the file in place and store stats in a transient
-     * keyed on the filename so handleAddAttachment() can write them to post meta.
+     * post exists. Stores a flag so handleAddAttachment() knows to trigger compression
+     * after the attachment post is created (at which point we have an attachment ID).
      */
     public function handleUpload(array $upload): array
     {
@@ -33,28 +33,18 @@ class Auto_Compress
         }
 
         $filePath = $upload['file'];
-        $result   = $this->apiClient->compress($filePath, $mime);
 
-        if (!$result) {
-            return $upload;
-        }
-
-        file_put_contents($filePath, $result['data']);
-
-        // Stash stats until we have an attachment ID
+        // Stash flag so handleAddAttachment() knows to trigger compress
         $key = 'imgpress_upload_' . md5($filePath);
-        set_transient($key, $result, 60);
-
-        if ($result['mime'] !== $mime) {
-            $upload['type'] = $result['mime'];
-        }
+        set_transient($key, ['should_compress' => true], 60);
 
         return $upload;
     }
 
     /**
-     * Fires right after the attachment post is created. Pulls the transient
-     * written by handleUpload() and saves stats to post meta.
+     * Fires right after the attachment post is created. Checks if compression
+     * should be triggered (via transient flag from handleUpload), compresses
+     * the file, and optionally pushes to R2 if enabled.
      */
     public function handleAddAttachment(int $attachmentId): void
     {
@@ -64,19 +54,21 @@ class Auto_Compress
             return;
         }
 
-        $key    = 'imgpress_upload_' . md5($filePath);
-        $result = get_transient($key);
+        $key = 'imgpress_upload_' . md5($filePath);
+        $flag = get_transient($key);
 
-        if (!$result) {
+        if (!$flag || empty($flag['should_compress'])) {
             return;
         }
 
         delete_transient($key);
 
-        update_post_meta($attachmentId, '_imgpress_original_size',   $result['originalSize']);
-        update_post_meta($attachmentId, '_imgpress_compressed_size', $result['compressedSize']);
-        update_post_meta($attachmentId, '_imgpress_ratio',           $result['ratio']);
-        update_post_meta($attachmentId, '_imgpress_compressed_at',   current_time('mysql'));
-        update_post_meta($attachmentId, '_imgpress_mime_out',        $result['mime']);
+        // Trigger compression (Compressor writes its own meta)
+        $this->compressor->compress($attachmentId);
+
+        // Push to R2 if enabled (happens after compress() which calls wp_generate_attachment_metadata)
+        if ($this->settings->isR2PushOnUpload()) {
+            $this->r2Uploader->upload($attachmentId);
+        }
     }
 }

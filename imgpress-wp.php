@@ -37,6 +37,16 @@ register_activation_hook(__FILE__, function (): void {
             'max_width'      => 1600,
             'enabled_types'  => ['image', 'pdf', 'audio', 'video'],
             'request_timeout' => 120,
+            'r2_enabled'          => false,
+            'r2_account_id'       => '',
+            'r2_access_key'       => '',
+            'r2_secret_key'       => '',
+            'r2_bucket'           => '',
+            'r2_custom_domain'    => '',
+            'r2_push_on_compress' => false,
+            'r2_push_on_upload'   => false,
+            'r2_delete_local'     => false,
+            'r2_rewrite_content'  => false,
         ]);
     }
 });
@@ -44,9 +54,16 @@ register_activation_hook(__FILE__, function (): void {
 add_action('plugins_loaded', function (): void {
     $settings      = new ImgPress\Settings();
     $apiClient     = new ImgPress\Api_Client($settings);
-    $compressor    = new ImgPress\Compressor($apiClient, $settings);
+    $r2Client      = new ImgPress\R2_Client($settings);
+    $r2Uploader    = new ImgPress\R2_Uploader($r2Client, $settings);
+    $compressor    = new ImgPress\Compressor($apiClient, $settings, $r2Uploader);
 
-    new ImgPress\Auto_Compress($apiClient, $compressor, $settings);
-    new ImgPress\Media_Columns($compressor, $settings);
+    new ImgPress\Auto_Compress($compressor, $r2Uploader, $settings);
+    new ImgPress\Media_Columns($compressor, $settings, $r2Uploader);
     new ImgPress\Bulk_Compress($compressor, $settings);
+    new ImgPress\R2_Bulk($r2Uploader, $settings);
+    new ImgPress\R2_URL_Rewriter($settings);
+
+    // Make $settings available globally for page templates
+    $GLOBALS['imgpress_settings'] = $settings;
 });

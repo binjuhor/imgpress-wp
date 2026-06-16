@@ -64,3 +64,41 @@
 .ip-row--error td {
     color: #646970;
 }
+
+/* ── R2 Offloading ────────────────────────────────────────────────────────── */
+.ip-r2-block {
+    display: block;
+    margin-top: 6px;
+}
+
+.ip-r2-badge {
+    background: #c2f0c2;
+    color: #0a6e0a;
+    border: 1px solid #7cb342;
+}
+
+.ip-r2-link {
+    display: block;
+    font-size: 11px;
+    color: #0073aa;
+    text-decoration: none;
+    margin-top: 4px;
+    word-break: break-all;
+}
+
+.ip-r2-link:hover {
+    color: #005a87;
+    text-decoration: underline;
+}
+
+.ip-r2-btn {
+    font-size: 11px;
+    padding: 4px 8px;
+    height: auto;
+    margin-top: 4px;
+}
+
+.ip-r2-result {
+    display: block;
+    margin-top: 4px;
+}

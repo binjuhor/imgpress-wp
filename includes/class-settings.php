@@ -17,6 +17,7 @@ class Settings
         add_action('admin_menu', [$this, 'addMenuPage']);
         add_action('admin_init', [$this, 'registerSettings']);
         add_action('wp_ajax_imgpress_test_connection', [$this, 'handleTestConnection']);
+        add_action('wp_ajax_imgpress_test_r2', [$this, 'handleTestR2Connection']);
     }
 
     public function addMenuPage(): void
@@ -52,7 +53,38 @@ class Settings
                 ['image', 'pdf', 'audio', 'video']
             ),
             'request_timeout' => max(10, min(600, (int) ($input['request_timeout'] ?? 120))),
+            'r2_enabled'          => !empty($input['r2_enabled']),
+            'r2_account_id'       => sanitize_text_field($input['r2_account_id'] ?? ''),
+            'r2_access_key'       => sanitize_text_field($input['r2_access_key'] ?? ''),
+            'r2_secret_key'       => $this->sanitizeSecret($input['r2_secret_key'] ?? ''),
+            'r2_bucket'           => sanitize_text_field($input['r2_bucket'] ?? ''),
+            'r2_custom_domain'    => $this->sanitizeHost($input['r2_custom_domain'] ?? ''),
+            'r2_push_on_compress' => !empty($input['r2_push_on_compress']),
+            'r2_push_on_upload'   => !empty($input['r2_push_on_upload']),
+            'r2_delete_local'     => !empty($input['r2_delete_local']),
+            'r2_rewrite_content'  => !empty($input['r2_rewrite_content']),
         ];
+    }
+
+    private function sanitizeSecret(string $value): string
+    {
+        if ($value === '********') {
+            return $this->options['r2_secret_key'] ?? '';
+        }
+        return sanitize_text_field($value);
+    }
+
+    private function sanitizeHost(string $value): string
+    {
+        if (empty($value)) {
+            return '';
+        }
+        $value = sanitize_text_field($value);
+        $parsed = wp_parse_url('https://' . $value, PHP_URL_HOST);
+        if ($parsed) {
+            return $parsed;
+        }
+        return preg_replace('#^https?://#', '', $value);
     }
 
     public function handleTestConnection(): void
@@ -74,6 +106,27 @@ class Settings
             wp_send_json_success('Connected');
         } else {
             wp_send_json_error("HTTP {$code}");
+        }
+    }
+
+    public function handleTestR2Connection(): void
+    {
+        check_ajax_referer('imgpress_test_r2');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized', 403);
+        }
+
+        if (!$this->isR2Configured()) {
+            wp_send_json_error('R2 is not properly configured. Please fill in all required fields.');
+        }
+
+        $client = new R2_Client($this);
+        $result = $client->headBucket();
+
+        if ($result['ok']) {
+            wp_send_json_success('Connected to R2 bucket');
+        } else {
+            wp_send_json_error($result['error'] ?? 'Connection failed');
         }
     }
 
@@ -135,5 +188,74 @@ class Settings
     public function getAll(): array
     {
         return $this->options;
+    }
+
+    public function isR2Enabled(): bool
+    {
+        return (bool) ($this->options['r2_enabled'] ?? false);
+    }
+
+    public function getR2AccountId(): string
+    {
+        return (string) ($this->options['r2_account_id'] ?? '');
+    }
+
+    public function getR2AccessKey(): string
+    {
+        return (string) ($this->options['r2_access_key'] ?? '');
+    }
+
+    public function getR2SecretKey(): string
+    {
+        return (string) ($this->options['r2_secret_key'] ?? '');
+    }
+
+    public function getR2Bucket(): string
+    {
+        return (string) ($this->options['r2_bucket'] ?? '');
+    }
+
+    public function getR2CustomDomain(): string
+    {
+        return (string) ($this->options['r2_custom_domain'] ?? '');
+    }
+
+    public function isR2PushOnCompress(): bool
+    {
+        return (bool) ($this->options['r2_push_on_compress'] ?? false);
+    }
+
+    public function isR2PushOnUpload(): bool
+    {
+        return (bool) ($this->options['r2_push_on_upload'] ?? false);
+    }
+
+    public function isR2DeleteLocal(): bool
+    {
+        return (bool) ($this->options['r2_delete_local'] ?? false);
+    }
+
+    public function isR2RewriteContent(): bool
+    {
+        return (bool) ($this->options['r2_rewrite_content'] ?? false);
+    }
+
+    public function getR2Endpoint(): string
+    {
+        $accountId = $this->getR2AccountId();
+        if (empty($accountId)) {
+            return '';
+        }
+        return "https://{$accountId}.r2.cloudflarestorage.com";
+    }
+
+    public function isR2Configured(): bool
+    {
+        return $this->isR2Enabled()
+            && !empty($this->getR2AccountId())
+            && !empty($this->getR2AccessKey())
+            && !empty($this->getR2SecretKey())
+            && !empty($this->getR2Bucket())
+            && !empty($this->getR2CustomDomain());
     }
 }
