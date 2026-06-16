@@ -1,0 +1,27 @@
+/* ── Media library column ─────────────────────────────────────────────────── */
+.column-imgpress {
+    width: 160px;
+}
+
+.ip-sizes {
+    display: block;
+    font-size: 12px;
+    color: #646970;
+    margin-top: 4px;
+}
+
+.ip-date {
+    display: block;
+    font-size: 11px;
+    color: #646970;
+    margin-top: 2px;
+}
+
+.ip-na {
+    color: #646970;
+}
+
+.ip-err {
+    font-size: 12px;
+    color: #d63638;
+}

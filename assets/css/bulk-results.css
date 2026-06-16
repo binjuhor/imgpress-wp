@@ -1,0 +1,11 @@
+/* ── Bulk results table file cell ─────────────────────────────────────────── */
+.ip-file {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ip-row--error td {
+    color: #646970;
+}

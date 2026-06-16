@@ -120,11 +120,36 @@ class R2_Bulk
 		}
 
 		wp_enqueue_style(
-			'imgpress-admin',
-			IMGPRESS_WP_URL . 'assets/admin.css',
+			'imgpress-badges',
+			IMGPRESS_WP_URL . 'assets/css/badges.css',
 			[],
 			IMGPRESS_WP_VERSION
 		);
+		wp_enqueue_style(
+			'imgpress-bulk-results',
+			IMGPRESS_WP_URL . 'assets/css/bulk-results.css',
+			[],
+			IMGPRESS_WP_VERSION
+		);
+		wp_enqueue_style(
+			'imgpress-r2-offloading',
+			IMGPRESS_WP_URL . 'assets/css/r2-offloading.css',
+			[],
+			IMGPRESS_WP_VERSION
+		);
+
+		wp_enqueue_script(
+			'imgpress-r2-bulk',
+			IMGPRESS_WP_URL . 'assets/js/r2-bulk.js',
+			['jquery'],
+			IMGPRESS_WP_VERSION,
+			true
+		);
+
+		wp_localize_script('imgpress-r2-bulk', 'ImgPressAdmin', [
+			'ajaxUrl' => admin_url('admin-ajax.php'),
+			'nonce'   => wp_create_nonce('imgpress_compress_single'),
+		]);
 
 		wp_enqueue_script(
 			'imgpress-admin',

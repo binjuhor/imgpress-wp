@@ -16,6 +16,7 @@ class Settings
 
         add_action('admin_menu', [$this, 'addMenuPage']);
         add_action('admin_init', [$this, 'registerSettings']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
         add_action('wp_ajax_imgpress_test_connection', [$this, 'handleTestConnection']);
         add_action('wp_ajax_imgpress_test_r2', [$this, 'handleTestR2Connection']);
     }
@@ -29,6 +30,54 @@ class Settings
             'imgpress-settings',
             fn() => require IMGPRESS_WP_DIR . 'admin/page-settings.php'
         );
+    }
+
+    public function enqueueAssets(string $hook): void
+    {
+        if ($hook !== 'settings_page_imgpress-settings') {
+            return;
+        }
+
+        wp_enqueue_style(
+            'imgpress-settings',
+            IMGPRESS_WP_URL . 'assets/css/settings.css',
+            [],
+            IMGPRESS_WP_VERSION
+        );
+
+        wp_enqueue_script(
+            'imgpress-settings-tabs',
+            IMGPRESS_WP_URL . 'assets/js/settings-tabs.js',
+            ['jquery'],
+            IMGPRESS_WP_VERSION,
+            true
+        );
+
+        wp_enqueue_script(
+            'imgpress-settings-tests',
+            IMGPRESS_WP_URL . 'assets/js/settings-tests.js',
+            ['jquery'],
+            IMGPRESS_WP_VERSION,
+            true
+        );
+
+        wp_localize_script('imgpress-settings-tests', 'ImgPressAdmin', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce('imgpress_compress_single'),
+            'r2Nonce' => wp_create_nonce('imgpress_r2'),
+            'i18n'    => [
+                'testing'        => __('Testing…', 'imgpress-wp'),
+                'connected'      => __('Connected', 'imgpress-wp'),
+                'failed'         => __('Failed', 'imgpress-wp'),
+                'requestFailed'  => __('Request failed', 'imgpress-wp'),
+                'testConnection' => __('Test Connection', 'imgpress-wp'),
+                'testR2'         => __('Test R2 Connection', 'imgpress-wp'),
+            ],
+            'nonce' => [
+                'testConnection' => wp_create_nonce('imgpress_test_connection'),
+                'testR2'         => wp_create_nonce('imgpress_test_r2'),
+            ],
+        ]);
     }
 
     public function registerSettings(): void
