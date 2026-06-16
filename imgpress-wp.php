@@ -5,7 +5,7 @@
  * Description: Automatically compress images, PDFs, audio, and video via the imgpress API.
  * Version:     1.1.0
  * Author:      Binjuhor
- * Author URL: https://binjuhor.com
+ * Author URI: https://binjuhor.com
  * License:     MIT
  * Text Domain: imgpress-wp
  */
