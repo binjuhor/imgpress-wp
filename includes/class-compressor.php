@@ -35,7 +35,23 @@ class Compressor
             return false;
         }
 
-        file_put_contents($filePath, $result['data']);
+        $newFilePath = $filePath;
+        $mimeChanged = false;
+
+        if ($result['mime'] !== $mime) {
+            $newFilePath = $this->get_converted_file_path($filePath, $result['mime']);
+            $mimeChanged = true;
+        }
+
+        file_put_contents($newFilePath, $result['data']);
+
+        if ($mimeChanged && $newFilePath !== $filePath && file_exists($filePath)) {
+            wp_delete_file($filePath);
+        }
+
+        if ($mimeChanged) {
+            update_attached_file($attachmentId, $newFilePath);
+        }
 
         update_post_meta($attachmentId, '_imgpress_original_size',   $result['originalSize']);
         update_post_meta($attachmentId, '_imgpress_compressed_size', $result['compressedSize']);
@@ -44,16 +60,55 @@ class Compressor
         update_post_meta($attachmentId, '_imgpress_mime_out',        $result['mime']);
 
         if (str_starts_with($mime, 'image/')) {
-            $metadata = wp_generate_attachment_metadata($attachmentId, $filePath);
+            $metadata = wp_generate_attachment_metadata($attachmentId, $newFilePath);
             wp_update_attachment_metadata($attachmentId, $metadata);
         }
 
-        // Push to R2 if enabled
+        if ($mimeChanged) {
+            wp_set_post_terms($attachmentId, $this->get_mime_type_term($result['mime']), 'attachment_type');
+        }
+
+        do_action('imgpress_compress_complete', $attachmentId);
+
         if ($this->settings->isR2PushOnCompress()) {
             $this->r2Uploader->upload($attachmentId);
         }
 
         return true;
+    }
+
+    private function get_converted_file_path(string $originalPath, string $newMime): string
+    {
+        $ext = $this->get_extension_for_mime($newMime);
+        $dir = dirname($originalPath);
+        $name = pathinfo($originalPath, PATHINFO_FILENAME);
+
+        return "{$dir}/{$name}.{$ext}";
+    }
+
+    private function get_extension_for_mime(string $mime): string
+    {
+        return match ($mime) {
+            'image/webp' => 'webp',
+            'image/avif' => 'avif',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            default => 'webp',
+        };
+    }
+
+    private function get_mime_type_term(string $mime): string
+    {
+        return match ($mime) {
+            'image/webp' => 'image',
+            'image/avif' => 'image',
+            'image/jpeg' => 'image',
+            'image/png' => 'image',
+            'image/gif' => 'image',
+            'application/pdf' => 'document',
+            default => 'unformatted',
+        };
     }
 
     public function getStats(int $attachmentId): ?array

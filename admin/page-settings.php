@@ -29,6 +29,10 @@
             <span class="dashicons dashicons-media-document"></span>
             <span><?php esc_html_e('File Types', 'imgpress-wp'); ?></span>
         </button>
+        <button class="imgpress-tab-button" data-tab="cache">
+            <span class="dashicons dashicons-performance"></span>
+            <span><?php esc_html_e('Cache', 'imgpress-wp'); ?></span>
+        </button>
     </div>
 
     <form method="post" action="options.php" class="imgpress-form">
@@ -427,6 +431,11 @@
                     </tr>
                 </table>
             </div>
+        </div>
+
+        <!-- Tab 4: Cache -->
+        <div class="imgpress-tab-content" id="cache">
+            <?php do_action('imgpress_after_settings_tabs'); ?>
         </div>
 
         <!-- Action Buttons -->

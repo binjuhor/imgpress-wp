@@ -19,6 +19,7 @@ class Settings
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
         add_action('wp_ajax_imgpress_test_connection', [$this, 'handleTestConnection']);
         add_action('wp_ajax_imgpress_test_r2', [$this, 'handleTestR2Connection']);
+        add_action('imgpress_after_settings_tabs', [$this, 'renderCacheTab']);
     }
 
     public function addMenuPage(): void
@@ -87,6 +88,17 @@ class Settings
         ]);
     }
 
+    public function renderCacheTab(): void
+    {
+        $cache_admin = new Cache_Admin(
+            new Cache_Manager(),
+            new Cache_Invalidation(new Cache_Manager())
+        );
+
+        $opts = (array) get_option(self::OPTION_KEY, []);
+        $cache_admin->render_cache_settings($opts);
+    }
+
     public function sanitize(array $input): array
     {
         return [
@@ -112,6 +124,23 @@ class Settings
             'r2_push_on_upload'   => !empty($input['r2_push_on_upload']),
             'r2_delete_local'     => !empty($input['r2_delete_local']),
             'r2_rewrite_content'  => !empty($input['r2_rewrite_content']),
+            'cache_enabled'       => !empty($input['cache_enabled']),
+            'cache_ttl'           => max(0, (int) ($input['cache_ttl'] ?? 0)),
+            'cache_gzip'          => !empty($input['cache_gzip']),
+            'cache_mobile'        => !empty($input['cache_mobile']),
+            'cache_logged_in'     => !empty($input['cache_logged_in']),
+            'cache_clear_on_new'  => !empty($input['cache_clear_on_new']),
+            'cache_clear_on_update' => !empty($input['cache_clear_on_update']),
+            'cache_size_limit'    => max(10485760, (int) ($input['cache_size_limit'] ?? 524288000)),
+            'cache_log_enabled'   => !empty($input['cache_log_enabled']),
+            'cache_etag_enabled'  => !empty($input['cache_etag_enabled']),
+            'cache_last_modified' => !empty($input['cache_last_modified']),
+            'cache_minify_enabled' => !empty($input['cache_minify_enabled']),
+            'cache_js_defer_enabled' => !empty($input['cache_js_defer_enabled']),
+            'cache_js_lazy_enabled' => !empty($input['cache_js_lazy_enabled']),
+            'cache_image_lazy_enabled' => !empty($input['cache_image_lazy_enabled']),
+            'cache_preload_enabled' => !empty($input['cache_preload_enabled']),
+            'cache_cdn_url' => esc_url_raw($input['cache_cdn_url'] ?? ''),
         ];
     }
 
