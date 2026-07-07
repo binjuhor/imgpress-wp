@@ -82,6 +82,8 @@ class Settings
             'nonce' => [
                 'testConnection' => wp_create_nonce('imgpress_test_connection'),
                 'testR2'         => wp_create_nonce('imgpress_test_r2'),
+                'dbCleanup'      => wp_create_nonce('imgpress_db_cleanup'),
+                'dbCleanupCounts' => wp_create_nonce('imgpress_db_cleanup_counts'),
             ],
         ]);
     }
@@ -146,6 +148,20 @@ class Settings
             'optimize_js_delay_selected' => $this->sanitizeTextarea($input['optimize_js_delay_selected'] ?? ''),
             'optimize_html_minify'     => !empty($input['optimize_html_minify']),
             'optimize_excluded_assets' => $this->sanitizeTextarea($input['optimize_excluded_assets'] ?? ''),
+            'db_cleanup_enabled' => !empty($input['db_cleanup_enabled']),
+            'db_cleanup_schedule' => in_array($input['db_cleanup_schedule'] ?? 'off', ['off', 'daily', 'weekly', 'monthly'], true)
+                ? $input['db_cleanup_schedule']
+                : 'off',
+            'db_cleanup_post_revisions' => !empty($input['db_cleanup_post_revisions']),
+            'db_cleanup_trashed_contents' => !empty($input['db_cleanup_trashed_contents']),
+            'db_cleanup_trashed_spam_comments' => !empty($input['db_cleanup_trashed_spam_comments']),
+            'db_cleanup_trackback_pingback' => !empty($input['db_cleanup_trackback_pingback']),
+            'db_cleanup_transient_options' => !empty($input['db_cleanup_transient_options']),
+            'db_cleanup_orphaned_post_meta' => !empty($input['db_cleanup_orphaned_post_meta']),
+            'db_cleanup_orphaned_comment_meta' => !empty($input['db_cleanup_orphaned_comment_meta']),
+            'db_cleanup_orphaned_user_meta' => !empty($input['db_cleanup_orphaned_user_meta']),
+            'db_cleanup_orphaned_term_meta' => !empty($input['db_cleanup_orphaned_term_meta']),
+            'db_cleanup_orphaned_term_relationships' => !empty($input['db_cleanup_orphaned_term_relationships']),
             'bloat_disable_jquery_migrate' => !empty($input['bloat_disable_jquery_migrate']),
             'bloat_disable_emojis' => !empty($input['bloat_disable_emojis']),
             'bloat_disable_block_css' => !empty($input['bloat_disable_block_css']),
@@ -520,6 +536,42 @@ class Settings
     public function getOptimizeExcludedAssets(): array
     {
         return $this->linesFromOption('optimize_excluded_assets');
+    }
+
+    public function isDbCleanupEnabled(): bool
+    {
+        return (bool) ($this->options['db_cleanup_enabled'] ?? false);
+    }
+
+    public function getDbCleanupSchedule(): string
+    {
+        return (string) ($this->options['db_cleanup_schedule'] ?? 'off');
+    }
+
+    public function isDbCleanupScheduled(): bool
+    {
+        return $this->isDbCleanupEnabled() && in_array($this->getDbCleanupSchedule(), ['daily', 'weekly', 'monthly'], true);
+    }
+
+    public function getDbCleanupOptions(): array
+    {
+        return [
+            'post_revisions' => (bool) ($this->options['db_cleanup_post_revisions'] ?? true),
+            'trashed_contents' => (bool) ($this->options['db_cleanup_trashed_contents'] ?? true),
+            'trashed_spam_comments' => (bool) ($this->options['db_cleanup_trashed_spam_comments'] ?? true),
+            'trackback_pingback' => (bool) ($this->options['db_cleanup_trackback_pingback'] ?? true),
+            'transient_options' => (bool) ($this->options['db_cleanup_transient_options'] ?? true),
+            'orphaned_post_meta' => (bool) ($this->options['db_cleanup_orphaned_post_meta'] ?? true),
+            'orphaned_comment_meta' => (bool) ($this->options['db_cleanup_orphaned_comment_meta'] ?? true),
+            'orphaned_user_meta' => (bool) ($this->options['db_cleanup_orphaned_user_meta'] ?? true),
+            'orphaned_term_meta' => (bool) ($this->options['db_cleanup_orphaned_term_meta'] ?? true),
+            'orphaned_term_relationships' => (bool) ($this->options['db_cleanup_orphaned_term_relationships'] ?? true),
+        ];
+    }
+
+    public function getDbCleanupLastRun(): string
+    {
+        return (string) get_option('imgpress_db_cleanup_last_run', '');
     }
 
     public function isBloatDisabled(string $feature): bool

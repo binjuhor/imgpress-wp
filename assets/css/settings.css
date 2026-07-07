@@ -178,6 +178,28 @@
     margin: 0;
 }
 
+.imgpress-count-badge {
+    background: #e8f0fe;
+    border: 1px solid #c7d7f2;
+    border-radius: 999px;
+    color: #174ea6;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    margin-left: 8px;
+    min-width: 24px;
+    justify-content: center;
+    padding: 2px 8px;
+    vertical-align: middle;
+}
+
+.imgpress-count-badge.is-empty {
+    background: #f6f7f7;
+    border-color: #dcdcde;
+    color: #646970;
+}
+
 .imgpress-checkbox.imgpress-danger .description {
     color: #d63638;
 }

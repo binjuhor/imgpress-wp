@@ -26,6 +26,19 @@
     $jsDeferExcludes = (string) ($opts['optimize_js_defer_excludes'] ?? '');
     $jsDelayAllExcludes = (string) ($opts['optimize_js_delay_all_excludes'] ?? '');
     $jsDelaySelected = (string) ($opts['optimize_js_delay_selected'] ?? '');
+    $dbCleanupEnabled = !empty($opts['db_cleanup_enabled']);
+    $dbCleanupSchedule = (string) ($opts['db_cleanup_schedule'] ?? 'off');
+    $dbCleanupLastRun = (string) get_option('imgpress_db_cleanup_last_run', '');
+    $dbCleanupPostRevisions = !empty($opts['db_cleanup_post_revisions']);
+    $dbCleanupTrashedContents = !empty($opts['db_cleanup_trashed_contents']);
+    $dbCleanupTrashedSpamComments = !empty($opts['db_cleanup_trashed_spam_comments']);
+    $dbCleanupTrackbackPingback = !empty($opts['db_cleanup_trackback_pingback']);
+    $dbCleanupTransientOptions = !empty($opts['db_cleanup_transient_options']);
+    $dbCleanupOrphanedPostMeta = !empty($opts['db_cleanup_orphaned_post_meta']);
+    $dbCleanupOrphanedCommentMeta = !empty($opts['db_cleanup_orphaned_comment_meta']);
+    $dbCleanupOrphanedUserMeta = !empty($opts['db_cleanup_orphaned_user_meta']);
+    $dbCleanupOrphanedTermMeta = !empty($opts['db_cleanup_orphaned_term_meta']);
+    $dbCleanupOrphanedTermRelationships = !empty($opts['db_cleanup_orphaned_term_relationships']);
     $bloatJqueryMigrate = !empty($opts['bloat_disable_jquery_migrate']);
     $bloatEmojis = !empty($opts['bloat_disable_emojis']);
     $bloatBlockCss = !empty($opts['bloat_disable_block_css']);
@@ -56,6 +69,10 @@
         <button class="imgpress-tab-button" data-tab="assets" role="tab" aria-controls="assets" aria-selected="false">
             <span class="dashicons dashicons-editor-code"></span>
             <span><?php esc_html_e('CSS / JS', 'imgpress-wp'); ?></span>
+        </button>
+        <button class="imgpress-tab-button" data-tab="database" role="tab" aria-controls="database" aria-selected="false">
+            <span class="dashicons dashicons-database"></span>
+            <span><?php esc_html_e('Database', 'imgpress-wp'); ?></span>
         </button>
         <button class="imgpress-tab-button" data-tab="bloat" role="tab" aria-controls="bloat" aria-selected="false">
             <span class="dashicons dashicons-no-alt"></span>
@@ -829,7 +846,153 @@
             </div>
         </div>
 
-        <!-- Tab 6: Bloat -->
+        <!-- Tab 6: Database -->
+        <div class="imgpress-tab-content" id="database" role="tabpanel" hidden>
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-database"></span>
+                    <?php esc_html_e('Database Cleanup', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <td style="padding:12px 0">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_enabled]" value="1" <?php checked($dbCleanupEnabled); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Enable database cleanup', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Allows ImgPress to schedule automatic cleanup with WP-Cron.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label for="ip_db_cleanup_schedule"><?php esc_html_e('Auto cleanup schedule', 'imgpress-wp'); ?></label><br />
+                            <select id="ip_db_cleanup_schedule" name="imgpress_wp_options[db_cleanup_schedule]" class="imgpress-select">
+                                <option value="off" <?php selected($dbCleanupSchedule, 'off'); ?>><?php esc_html_e('Off', 'imgpress-wp'); ?></option>
+                                <option value="daily" <?php selected($dbCleanupSchedule, 'daily'); ?>><?php esc_html_e('Daily', 'imgpress-wp'); ?></option>
+                                <option value="weekly" <?php selected($dbCleanupSchedule, 'weekly'); ?>><?php esc_html_e('Weekly', 'imgpress-wp'); ?></option>
+                                <option value="monthly" <?php selected($dbCleanupSchedule, 'monthly'); ?>><?php esc_html_e('Monthly', 'imgpress-wp'); ?></option>
+                            </select>
+                            <p class="description"><?php esc_html_e('Runs at 5:00 AM server time when enabled.', 'imgpress-wp'); ?></p>
+                            <?php if ($dbCleanupLastRun !== ''): ?>
+                                <p class="description"><?php echo esc_html(sprintf(__('Last run: %s', 'imgpress-wp'), $dbCleanupLastRun)); ?></p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_post_revisions]" value="1" <?php checked($dbCleanupPostRevisions); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete post revisions', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="post_revisions">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_trashed_contents]" value="1" <?php checked($dbCleanupTrashedContents); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete trashed posts and pages', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="trashed_contents">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_trashed_spam_comments]" value="1" <?php checked($dbCleanupTrashedSpamComments); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete spam and trashed comments', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="trashed_spam_comments">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_trackback_pingback]" value="1" <?php checked($dbCleanupTrackbackPingback); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete trackbacks and pingbacks', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="trackback_pingback">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_transient_options]" value="1" <?php checked($dbCleanupTransientOptions); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete transient options', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="transient_options">0</span></strong>
+                                    <span class="description"><?php esc_html_e('Removes expired and orphaned transient rows from wp_options.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_orphaned_post_meta]" value="1" <?php checked($dbCleanupOrphanedPostMeta); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete orphaned post meta', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="orphaned_post_meta">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_orphaned_comment_meta]" value="1" <?php checked($dbCleanupOrphanedCommentMeta); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete orphaned comment meta', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="orphaned_comment_meta">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_orphaned_user_meta]" value="1" <?php checked($dbCleanupOrphanedUserMeta); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete orphaned user meta', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="orphaned_user_meta">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_orphaned_term_meta]" value="1" <?php checked($dbCleanupOrphanedTermMeta); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete orphaned term meta', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="orphaned_term_meta">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[db_cleanup_orphaned_term_relationships]" value="1" <?php checked($dbCleanupOrphanedTermRelationships); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delete orphaned term relationships', 'imgpress-wp'); ?> <span class="imgpress-count-badge" data-cleanup-count="orphaned_term_relationships">0</span></strong>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+                <p style="margin-top:16px">
+                    <button type="button" id="ip-db-cleanup-run" class="button button-primary">
+                        <?php esc_html_e('Run Cleanup Now', 'imgpress-wp'); ?>
+                    </button>
+                    <span id="ip-db-cleanup-result" style="margin-left:12px;font-size:13px"></span>
+                    <span id="ip-db-cleanup-total" style="margin-left:12px;font-size:13px;color:#646970"></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Tab 7: Bloat -->
         <div class="imgpress-tab-content" id="bloat" role="tabpanel" hidden>
             <div class="imgpress-card">
                 <h2 class="imgpress-card-title">

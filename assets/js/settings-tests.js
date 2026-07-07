@@ -59,6 +59,64 @@
         });
     });
 
+    // Run database cleanup
+    $('#ip-db-cleanup-run').on('click', function () {
+        var $btn = $(this);
+        var $result = $('#ip-db-cleanup-result');
+        var originalText = $btn.text();
+
+        $btn.prop('disabled', true).text(ImgPressAdmin.i18n.testing);
+        $result.css('color', '').text('');
+
+        $.post(ajaxurl, {
+            action: 'imgpress_db_cleanup_run',
+            _ajax_nonce: ImgPressAdmin.nonce.dbCleanup,
+        }, function (res) {
+            if (res.success) {
+                $result.css('color', '#00a32a').text('✓ ' + responseMessage(res.data, 'Cleanup completed'));
+                loadCleanupCounts();
+            } else {
+                $result.css('color', '#d63638').text('✗ ' + responseMessage(res.data, ImgPressAdmin.i18n.failed));
+            }
+        }).fail(function () {
+            $result.css('color', '#d63638').text('✗ ' + ImgPressAdmin.i18n.requestFailed);
+        }).always(function () {
+            $btn.prop('disabled', false).text(originalText);
+        });
+    });
+
+    function loadCleanupCounts() {
+        var $badges = $('[data-cleanup-count]');
+        if (!$badges.length) {
+            return;
+        }
+
+        $.post(ajaxurl, {
+            action: 'imgpress_db_cleanup_counts',
+            _ajax_nonce: ImgPressAdmin.nonce.dbCleanupCounts,
+        }, function (res) {
+            if (!res.success || !res.data || !res.data.counts) {
+                return;
+            }
+
+            var counts = res.data.counts;
+            $badges.each(function () {
+                var $badge = $(this);
+                var key = $badge.data('cleanup-count');
+                var count = parseInt(counts[key], 10) || 0;
+                $badge.text(count);
+                $badge.toggleClass('is-empty', count === 0);
+            });
+
+            var $total = $('#ip-db-cleanup-total');
+            if ($total.length) {
+                $total.text(res.data.total || 0);
+            }
+        });
+    }
+
+    $(loadCleanupCounts);
+
     function responseMessage(data, fallback) {
         if (typeof data === 'string' && data.length) {
             return data;

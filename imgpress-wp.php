@@ -59,6 +59,7 @@ add_action('plugins_loaded', function (): void {
     $pageCache = new ImgPress\Page_Cache($settings, $logger);
     $assetOptimizer = new ImgPress\Asset_Optimizer($settings, $logger);
     $htmlOptimizer = new ImgPress\Html_Optimizer($settings, $logger);
+    $databaseOptimizer = new ImgPress\Database_Optimizer($settings, $logger);
     $preload = new ImgPress\Preload($settings, $logger, $jobs, $pageCache);
     $bloat = new ImgPress\Bloat($settings);
 
@@ -74,6 +75,7 @@ add_action('plugins_loaded', function (): void {
     $pageCache->init();
     $assetOptimizer->init();
     $htmlOptimizer->init();
+    $databaseOptimizer->init();
     $preload->init();
     $bloat->init();
 
