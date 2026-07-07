@@ -27,7 +27,7 @@ class R2_Bulk
 			'imgpress',
 			__('ImgPress R2 Offload', 'imgpress-wp'),
 			__('R2 Offload', 'imgpress-wp'),
-			'upload_files',
+			'manage_options',
 			'imgpress-r2-bulk',
 			fn() => require IMGPRESS_WP_DIR . 'admin/page-r2-bulk.php'
 		);

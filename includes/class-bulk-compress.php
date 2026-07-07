@@ -22,7 +22,7 @@ class Bulk_Compress
             'imgpress',
             __('ImgPress Bulk Compress', 'imgpress-wp'),
             __('Bulk Compress', 'imgpress-wp'),
-            'upload_files',
+            'manage_options',
             'imgpress-bulk',
             fn() => require IMGPRESS_WP_DIR . 'admin/page-bulk.php'
         );

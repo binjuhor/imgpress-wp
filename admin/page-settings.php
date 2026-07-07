@@ -231,7 +231,7 @@
                             </label>
                             <p class="description">
                                 <?php esc_html_e('Enable Cloudflare R2 media storage.', 'imgpress-wp'); ?>
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-r2-bulk')); ?>" target="_blank">
+                                <a href="<?php echo esc_url(menu_page_url('imgpress-r2-bulk', false)); ?>" target="_blank">
                                     <?php esc_html_e('View R2 Setup Guide →', 'imgpress-wp'); ?>
                                 </a>
                             </p>
@@ -924,11 +924,11 @@
                 <?php submit_button(__('Save Changes', 'imgpress-wp'), 'primary', 'submit', false); ?>
             </div>
             <div class="imgpress-links">
-                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-bulk')); ?>" class="button">
+                <a href="<?php echo esc_url(menu_page_url('imgpress-bulk', false)); ?>" class="button">
                     <span class="dashicons dashicons-format-gallery"></span>
                     <?php esc_html_e('Bulk Compress', 'imgpress-wp'); ?>
                 </a>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-r2-bulk')); ?>" class="button">
+                <a href="<?php echo esc_url(menu_page_url('imgpress-r2-bulk', false)); ?>" class="button">
                     <span class="dashicons dashicons-cloud-upload"></span>
                     <?php esc_html_e('Bulk Offload to R2', 'imgpress-wp'); ?>
                 </a>
