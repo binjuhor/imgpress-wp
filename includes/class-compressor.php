@@ -31,11 +31,24 @@ class Compressor
             return false;
         }
 
-        if ($result['compressedSize'] > $result['originalSize']) {
+        if ($result['mime'] === $mime && $result['compressedSize'] > $result['originalSize']) {
             return false;
         }
 
-        file_put_contents($filePath, $result['data']);
+        $targetPath = $this->getTargetPath($filePath, $mime, $result['mime']);
+
+        if (file_put_contents($targetPath, $result['data']) === false) {
+            error_log("[ImgPress] Cannot write compressed file: {$targetPath}");
+            return false;
+        }
+
+        if ($targetPath !== $filePath) {
+            update_attached_file($attachmentId, $targetPath);
+            wp_update_post([
+                'ID'             => $attachmentId,
+                'post_mime_type' => $result['mime'],
+            ]);
+        }
 
         update_post_meta($attachmentId, '_imgpress_original_size',   $result['originalSize']);
         update_post_meta($attachmentId, '_imgpress_compressed_size', $result['compressedSize']);
@@ -44,8 +57,16 @@ class Compressor
         update_post_meta($attachmentId, '_imgpress_mime_out',        $result['mime']);
 
         if (str_starts_with($mime, 'image/')) {
-            $metadata = wp_generate_attachment_metadata($attachmentId, $filePath);
+            if ($targetPath !== $filePath) {
+                $this->deleteOldImageFiles($attachmentId, $filePath);
+            }
+
+            $metadata = wp_generate_attachment_metadata($attachmentId, $targetPath);
             wp_update_attachment_metadata($attachmentId, $metadata);
+        }
+
+        if ($targetPath !== $filePath && file_exists($filePath)) {
+            wp_delete_file($filePath);
         }
 
         // Push to R2 if enabled
@@ -71,5 +92,62 @@ class Compressor
             'compressedAt'   => $compressedAt,
             'mimeOut'        => get_post_meta($attachmentId, '_imgpress_mime_out', true),
         ];
+    }
+
+    private function getTargetPath(string $filePath, string $sourceMime, string $targetMime): string
+    {
+        if (!str_starts_with($sourceMime, 'image/') || !str_starts_with($targetMime, 'image/')) {
+            return $filePath;
+        }
+
+        $extension = $this->extensionForMime($targetMime);
+        if (!$extension) {
+            return $filePath;
+        }
+
+        $info = pathinfo($filePath);
+        if (strtolower($info['extension'] ?? '') === $extension) {
+            return $filePath;
+        }
+
+        $directory = $info['dirname'] ?? dirname($filePath);
+        $filename = ($info['filename'] ?? basename($filePath)) . '.' . $extension;
+
+        if (file_exists($directory . '/' . $filename)) {
+            $filename = wp_unique_filename($directory, $filename);
+        }
+
+        return $directory . '/' . $filename;
+    }
+
+    private function extensionForMime(string $mime): ?string
+    {
+        return match ($mime) {
+            'image/webp' => 'webp',
+            'image/avif' => 'avif',
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            default => null,
+        };
+    }
+
+    private function deleteOldImageFiles(int $attachmentId, string $filePath): void
+    {
+        $metadata = wp_get_attachment_metadata($attachmentId);
+        if (!is_array($metadata) || empty($metadata['sizes']) || !is_array($metadata['sizes'])) {
+            return;
+        }
+
+        $directory = dirname($filePath);
+        foreach ($metadata['sizes'] as $size) {
+            if (empty($size['file'])) {
+                continue;
+            }
+
+            $sizePath = $directory . '/' . $size['file'];
+            if (file_exists($sizePath)) {
+                wp_delete_file($sizePath);
+            }
+        }
     }
 }

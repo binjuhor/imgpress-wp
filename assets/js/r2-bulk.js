@@ -75,12 +75,11 @@
                             '</tr>'
                         );
                     } else {
-                        failed++;
-                        $('#ip-r2-failed-count').text(failed);
                         $('#ip-r2-results-tbody').append(
-                            '<tr class="ip-row--error">' +
+                            '<tr>' +
                             '<td class="ip-file">' + $('<div>').text(name).html() + '</td>' +
-                            '<td colspan="2"><span class="ip-err">No URL returned</span></td>' +
+                            '<td><span class="ip-badge ip-r2-badge">✓</span></td>' +
+                            '<td><span class="ip-r2-link">No public URL</span></td>' +
                             '</tr>'
                         );
                     }

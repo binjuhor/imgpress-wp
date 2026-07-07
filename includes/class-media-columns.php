@@ -149,6 +149,8 @@ class Media_Columns
                 echo '<a href="' . esc_attr($status['url']) . '" target="_blank" class="ip-r2-link">' .
                      esc_html(parse_url($status['url'], PHP_URL_HOST)) .
                      '</a>';
+            } else {
+                echo '<span class="ip-r2-link">No public URL</span>';
             }
 
             echo '<button class="button ip-r2-btn ip-r2-remove-btn" data-id="' . esc_attr($postId) . '">Remove</button>';

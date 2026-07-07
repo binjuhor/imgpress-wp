@@ -62,8 +62,12 @@
                         '<button class="button ip-r2-btn ip-r2-remove-btn" data-id="' + id + '">Remove</button>'
                     );
                 } else {
-                    $btn.prop('disabled', false).text('Push to R2');
-                    $result.html('<span class="ip-err">No URL returned</span>');
+                    $btn.remove();
+                    $result.html(
+                        '<span class="ip-badge ip-r2-badge">R2 ✓</span>' +
+                        '<span class="ip-r2-link">No public URL</span>' +
+                        '<button class="button ip-r2-btn ip-r2-remove-btn" data-id="' + id + '">Remove</button>'
+                    );
                 }
             } else {
                 $btn.prop('disabled', false).text('Push to R2');

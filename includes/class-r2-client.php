@@ -41,7 +41,7 @@ class R2_Client
 
         $signedHeaders = $this->signRequest($method, $key, $headers, $payloadHash);
 
-        $url = $this->getEndpoint() . '/' . $this->getUrlEncodedKey($key);
+        $url = $this->getEndpoint() . $this->getObjectPath($key);
 
         $response = wp_remote_request($url, [
             'method' => $method,
@@ -74,7 +74,7 @@ class R2_Client
 
         $signedHeaders = $this->signRequest($method, $key, $headers, $payloadHash);
 
-        $url = $this->getEndpoint() . '/' . $this->getUrlEncodedKey($key);
+        $url = $this->getEndpoint() . $this->getObjectPath($key);
 
         $response = wp_remote_request($url, [
             'method' => $method,
@@ -111,12 +111,12 @@ class R2_Client
         ];
 
         // HeadBucket uses just the bucket path, not object key
-        $canonicalRequest = $this->buildCanonicalRequest($method, '/' . $bucket, '', $headers, $payloadHash);
+        $canonicalRequest = $this->buildCanonicalRequest($method, $this->getBucketPath(), '', $headers, $payloadHash);
         $signedHeaders = $this->getSignedHeaders($headers);
         $auth = $this->buildAuthorizationHeader($canonicalRequest, $headers, $signedHeaders);
         $headers['Authorization'] = $auth;
 
-        $url = $this->getEndpoint() . '/' . $bucket;
+        $url = $this->getEndpoint() . $this->getBucketPath();
 
         $response = wp_remote_request($url, [
             'method' => $method,
@@ -141,7 +141,7 @@ class R2_Client
      */
     private function signRequest(string $method, string $key, array $headers, string $payloadHash): array
     {
-        $path = '/' . $this->settings->getR2Bucket() . '/' . $this->getUrlEncodedKey($key);
+        $path = $this->getObjectPath($key);
         $canonicalRequest = $this->buildCanonicalRequest($method, $path, '', $headers, $payloadHash);
         $signedHeaders = $this->getSignedHeaders($headers);
         $auth = $this->buildAuthorizationHeader($canonicalRequest, $headers, $signedHeaders);
@@ -259,6 +259,22 @@ class R2_Client
     private function getEndpoint(): string
     {
         return 'https://' . $this->getHost();
+    }
+
+    /**
+     * Get path-style bucket URI used by Cloudflare R2 S3 API.
+     */
+    private function getBucketPath(): string
+    {
+        return '/' . rawurlencode($this->settings->getR2Bucket());
+    }
+
+    /**
+     * Get path-style object URI used by Cloudflare R2 S3 API.
+     */
+    private function getObjectPath(string $key): string
+    {
+        return $this->getBucketPath() . '/' . $this->getUrlEncodedKey($key);
     }
 
     /**

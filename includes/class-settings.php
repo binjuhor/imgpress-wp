@@ -117,7 +117,7 @@ class Settings
 
     private function sanitizeSecret(string $value): string
     {
-        if ($value === '********') {
+        if ($value === '' || $value === '********') {
             return $this->options['r2_secret_key'] ?? '';
         }
         return sanitize_text_field($value);
@@ -269,6 +269,16 @@ class Settings
         return (string) ($this->options['r2_custom_domain'] ?? '');
     }
 
+    public function getR2PublicBaseUrl(): string
+    {
+        $domain = $this->getR2CustomDomain();
+        if (empty($domain)) {
+            return '';
+        }
+
+        return 'https://' . preg_replace('#^https?://#', '', rtrim($domain, '/'));
+    }
+
     public function isR2PushOnCompress(): bool
     {
         return (bool) ($this->options['r2_push_on_compress'] ?? false);
@@ -304,7 +314,6 @@ class Settings
             && !empty($this->getR2AccountId())
             && !empty($this->getR2AccessKey())
             && !empty($this->getR2SecretKey())
-            && !empty($this->getR2Bucket())
-            && !empty($this->getR2CustomDomain());
+            && !empty($this->getR2Bucket());
     }
 }

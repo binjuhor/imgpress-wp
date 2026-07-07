@@ -21,10 +21,7 @@ class R2_URL_Rewriter
         $uploads = wp_upload_dir();
         $this->uploadBaseUrl = $uploads['baseurl'] ?? '';
 
-        $customDomain = $this->settings->getR2CustomDomain();
-        $this->customDomainUrl = !empty($customDomain)
-            ? 'https://' . preg_replace('#^https?://#', '', $customDomain)
-            : '';
+        $this->customDomainUrl = $this->settings->getR2PublicBaseUrl();
 
         $this->registerHooks();
     }

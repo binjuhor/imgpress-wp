@@ -269,7 +269,7 @@
                     </tr>
                     <tr>
                         <th scope="row">
-                            <label for="r2_custom_domain"><?php esc_html_e('Custom Domain', 'imgpress-wp'); ?></label>
+                            <label for="r2_custom_domain"><?php esc_html_e('Public URL / Custom Domain', 'imgpress-wp'); ?></label>
                         </th>
                         <td>
                             <input
@@ -278,10 +278,10 @@
                                 name="imgpress_wp_options[r2_custom_domain]"
                                 value="<?php echo esc_attr($opts['r2_custom_domain'] ?? ''); ?>"
                                 class="regular-text"
-                                placeholder="media.example.com"
+                                placeholder="pub-xxxxxxxx.r2.dev or media.example.com"
                             />
                             <p class="description">
-                                <?php esc_html_e('Optional. Use custom domain for better branding and caching. (host only, no scheme)', 'imgpress-wp'); ?>
+                                <?php esc_html_e('Required for clickable R2 links and URL rewriting. Use your bucket public r2.dev domain or a Cloudflare custom domain. Host only, no scheme.', 'imgpress-wp'); ?>
                             </p>
                         </td>
                     </tr>

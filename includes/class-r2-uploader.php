@@ -274,7 +274,7 @@ class R2_Uploader
 
 	/**
 	 * Construct public URL for R2 object.
-	 * Format: https://{custom_domain}/{key}
+	 * Format: https://{public_base_url}/{key}
 	 *
 	 * @param string $key R2 object key
 	 *
@@ -282,15 +282,23 @@ class R2_Uploader
 	 */
 	private function publicUrl(string $key): string
 	{
-		$domain = $this->settings->getR2CustomDomain();
-		if (empty($domain)) {
+		$baseUrl = method_exists($this->settings, 'getR2PublicBaseUrl')
+			? $this->settings->getR2PublicBaseUrl()
+			: '';
+
+		if (empty($baseUrl)) {
 			return '';
 		}
 
-		// Ensure domain doesn't have protocol
-		$domain = preg_replace('#^https?://#', '', $domain);
+		return rtrim($baseUrl, '/') . '/' . $this->getUrlEncodedKey(ltrim($key, '/'));
+	}
 
-		return "https://{$domain}/{$key}";
+	private function getUrlEncodedKey(string $key): string
+	{
+		$segments = explode('/', $key);
+		$segments = array_map('rawurlencode', $segments);
+
+		return implode('/', $segments);
 	}
 
 	/**
