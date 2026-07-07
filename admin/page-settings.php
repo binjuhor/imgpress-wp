@@ -13,6 +13,12 @@
     $width      = (int) ($opts['max_width'] ?? 1600);
     $types      = (array) ($opts['enabled_types'] ?? ['image', 'pdf', 'audio', 'video']);
     $timeout    = (int) ($opts['request_timeout'] ?? 120);
+    $cacheEnabled = !empty($opts['cache_enabled']);
+    $cacheLifespan = (int) ($opts['cache_lifespan'] ?? DAY_IN_SECONDS);
+    $cacheExcludedUrls = (string) ($opts['cache_excluded_urls'] ?? "/wp-admin/*\n/wp-login.php*");
+    $cacheExcludedCookies = (string) ($opts['cache_excluded_cookies'] ?? "wordpress_logged_in_\nwp-postpass_\nwoocommerce_items_in_cart");
+    $cacheIgnoredQueryArgs = (string) ($opts['cache_ignored_query_args'] ?? "utm_source\nutm_medium\nutm_campaign\nutm_content\nutm_term\nfbclid\ngclid");
+    $optimizeExcludedAssets = (string) ($opts['optimize_excluded_assets'] ?? '');
     ?>
 
     <!-- Tab Navigation -->
@@ -28,6 +34,14 @@
         <button class="imgpress-tab-button" data-tab="files" role="tab" aria-controls="files" aria-selected="false">
             <span class="dashicons dashicons-media-document"></span>
             <span><?php esc_html_e('File Types', 'imgpress-wp'); ?></span>
+        </button>
+        <button class="imgpress-tab-button" data-tab="cache" role="tab" aria-controls="cache" aria-selected="false">
+            <span class="dashicons dashicons-performance"></span>
+            <span><?php esc_html_e('Cache', 'imgpress-wp'); ?></span>
+        </button>
+        <button class="imgpress-tab-button" data-tab="assets" role="tab" aria-controls="assets" aria-selected="false">
+            <span class="dashicons dashicons-editor-code"></span>
+            <span><?php esc_html_e('CSS / JS', 'imgpress-wp'); ?></span>
         </button>
     </div>
 
@@ -81,6 +95,10 @@
                             <span class="description" style="display:inline;margin-left:4px">
                                 <?php esc_html_e('seconds', 'imgpress-wp'); ?>
                             </span>
+                            <strong id="ip-cache-lifespan-human" style="display:inline-block;margin-left:8px"></strong>
+                            <p class="description">
+                                <?php esc_html_e('Example: 3600 = 1 hour, 86400 = 1 day, 604800 = 7 days.', 'imgpress-wp'); ?>
+                            </p>
                         </td>
                     </tr>
                 </table>
@@ -429,6 +447,243 @@
             </div>
         </div>
 
+        <!-- Tab 4: Cache -->
+        <div class="imgpress-tab-content" id="cache" role="tabpanel" hidden>
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-performance"></span>
+                    <?php esc_html_e('Page Cache', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Enable Cache', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label for="ip_cache_enabled" class="imgpress-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="ip_cache_enabled"
+                                    name="imgpress_wp_options[cache_enabled]"
+                                    value="1"
+                                    <?php checked($cacheEnabled); ?>
+                                />
+                                <span></span>
+                            </label>
+                            <p class="description">
+                                <?php esc_html_e('Opt-in page caching. Keep this off when another page cache plugin owns caching for the site.', 'imgpress-wp'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_lifespan"><?php esc_html_e('Cache Lifespan', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <input
+                                type="number"
+                                id="ip_cache_lifespan"
+                                name="imgpress_wp_options[cache_lifespan]"
+                                value="<?php echo esc_attr($cacheLifespan); ?>"
+                                class="regular-text"
+                                min="<?php echo esc_attr(MINUTE_IN_SECONDS); ?>"
+                                max="<?php echo esc_attr(MONTH_IN_SECONDS); ?>"
+                            />
+                            <span class="description" style="display:inline;margin-left:4px">
+                                <?php esc_html_e('seconds', 'imgpress-wp'); ?>
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('advanced-cache.php', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_advanced_dropin]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_advanced_dropin'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Install ImgPress advanced cache drop-in', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Only ImgPress-owned drop-ins are overwritten or removed.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                            <p class="description">
+                                <?php echo esc_html(sprintf(__('Status: %s', 'imgpress-wp'), ImgPress\Cache_Dropin::isInstalled() ? __('installed', 'imgpress-wp') : __('not installed', 'imgpress-wp'))); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Background Tasks', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_preload]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_preload'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Preload cache after purge', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Uses Action Scheduler when available and falls back to WP-Cron.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Logged-in Users', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_logged_in]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_logged_in'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Cache logged-in requests', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Leave disabled for membership, account, cart, and dashboard-heavy sites.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-filter"></span>
+                    <?php esc_html_e('Cache Rules', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_excluded_urls"><?php esc_html_e('Excluded URLs', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_cache_excluded_urls"
+                                name="imgpress_wp_options[cache_excluded_urls]"
+                                rows="5"
+                                class="large-text code"
+                            ><?php echo esc_textarea($cacheExcludedUrls); ?></textarea>
+                            <p class="description"><?php esc_html_e('One path or wildcard pattern per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_excluded_cookies"><?php esc_html_e('Excluded Cookies', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_cache_excluded_cookies"
+                                name="imgpress_wp_options[cache_excluded_cookies]"
+                                rows="5"
+                                class="large-text code"
+                            ><?php echo esc_textarea($cacheExcludedCookies); ?></textarea>
+                            <p class="description"><?php esc_html_e('One cookie name or partial cookie name per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_ignored_query_args"><?php esc_html_e('Ignored Query Args', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_cache_ignored_query_args"
+                                name="imgpress_wp_options[cache_ignored_query_args]"
+                                rows="5"
+                                class="large-text code"
+                            ><?php echo esc_textarea($cacheIgnoredQueryArgs); ?></textarea>
+                            <p class="description"><?php esc_html_e('Tracking query strings listed here share the same cache file.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 5: CSS / JS -->
+        <div class="imgpress-tab-content" id="assets" role="tabpanel" hidden>
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-editor-code"></span>
+                    <?php esc_html_e('CSS / JS Optimization', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <td style="padding:12px 0">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_css_minify]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_css_minify'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Minify CSS files', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Creates optimized CSS copies in wp-content/cache/imgpress/assets.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_js_minify]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_js_minify'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Minify JavaScript files', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Uses the same Matthias Mullie minifier package used by FlyingPress.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_html_minify]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_html_minify'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Minify HTML output', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes extra whitespace and regular HTML comments from frontend responses.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-filter"></span>
+                    <?php esc_html_e('Asset Exclusions', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_optimize_excluded_assets"><?php esc_html_e('Excluded CSS / JS', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_optimize_excluded_assets"
+                                name="imgpress_wp_options[optimize_excluded_assets]"
+                                rows="6"
+                                class="large-text code"
+                            ><?php echo esc_textarea($optimizeExcludedAssets); ?></textarea>
+                            <p class="description"><?php esc_html_e('One URL fragment, filename, handle keyword, or folder path per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="imgpress-actions">
             <div class="imgpress-save">
@@ -442,6 +697,14 @@
                 <a href="<?php echo esc_url(admin_url('upload.php?page=imgpress-r2-bulk')); ?>" class="button">
                     <span class="dashicons dashicons-cloud-upload"></span>
                     <?php esc_html_e('Bulk Offload to R2', 'imgpress-wp'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress')); ?>" class="button">
+                    <span class="dashicons dashicons-performance"></span>
+                    <?php esc_html_e('Dashboard', 'imgpress-wp'); ?>
+                </a>
+                <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=imgpress_purge_asset_cache'), 'imgpress_purge_asset_cache')); ?>" class="button">
+                    <span class="dashicons dashicons-trash"></span>
+                    <?php esc_html_e('Purge Asset Cache', 'imgpress-wp'); ?>
                 </a>
             </div>
         </div>

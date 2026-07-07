@@ -48,4 +48,37 @@
         $('#ip-quality-val').text(this.value);
     });
 
+    function formatSeconds(seconds) {
+        seconds = parseInt(seconds, 10) || 0;
+
+        var units = [
+            { label: 'day', seconds: 86400 },
+            { label: 'hour', seconds: 3600 },
+            { label: 'minute', seconds: 60 }
+        ];
+
+        for (var i = 0; i < units.length; i++) {
+            if (seconds >= units[i].seconds && seconds % units[i].seconds === 0) {
+                var value = seconds / units[i].seconds;
+                return value + ' ' + units[i].label + (value === 1 ? '' : 's');
+            }
+        }
+
+        return seconds + ' seconds';
+    }
+
+    function updateCacheLifespan() {
+        var $input = $('#ip_cache_lifespan');
+        var $target = $('#ip-cache-lifespan-human');
+
+        if (!$input.length || !$target.length) {
+            return;
+        }
+
+        $target.text('(' + formatSeconds($input.val()) + ')');
+    }
+
+    $('#ip_cache_lifespan').on('input change', updateCacheLifespan);
+    updateCacheLifespan();
+
 })(jQuery);
