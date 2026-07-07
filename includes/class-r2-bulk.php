@@ -148,7 +148,7 @@ class R2_Bulk
 
 		wp_localize_script('imgpress-r2-bulk', 'ImgPressAdmin', [
 			'ajaxUrl' => admin_url('admin-ajax.php'),
-			'nonce'   => wp_create_nonce('imgpress_compress_single'),
+			'nonce'   => wp_create_nonce('imgpress_r2_bulk'),
 		]);
 
 		wp_enqueue_script(
@@ -159,7 +159,7 @@ class R2_Bulk
 			true
 		);
 
-		wp_localize_script('imgpress-admin', 'ImgPressAdmin', [
+		wp_localize_script('imgpress-admin', 'ImgPressMediaAdmin', [
 			'ajaxUrl'   => admin_url('admin-ajax.php'),
 			'nonce'     => wp_create_nonce('imgpress_r2_bulk'),
 			'r2Nonce'   => wp_create_nonce('imgpress_r2'),

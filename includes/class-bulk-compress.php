@@ -112,7 +112,7 @@ class Bulk_Compress
 
         wp_localize_script('imgpress-bulk-compress', 'ImgPressAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce'   => wp_create_nonce('imgpress_compress_single'),
+            'nonce'   => wp_create_nonce('imgpress_bulk'),
         ]);
 
         wp_enqueue_script(
@@ -123,7 +123,7 @@ class Bulk_Compress
             true
         );
 
-        wp_localize_script('imgpress-admin', 'ImgPressAdmin', [
+        wp_localize_script('imgpress-admin', 'ImgPressMediaAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('imgpress_bulk'),
         ]);
