@@ -19,7 +19,7 @@ class Bulk_Compress
     public function addMenuPage(): void
     {
         add_submenu_page(
-            'imgpress',
+            Dashboard::menuSlug(),
             __('ImgPress Bulk Compress', 'imgpress-wp'),
             __('Bulk Compress', 'imgpress-wp'),
             'manage_options',

@@ -14,7 +14,8 @@ class Dashboard
         private ?Preload $preload = null,
         private ?Asset_Optimizer $assetOptimizer = null
     ) {
-        add_action('admin_menu', [$this, 'addMenu']);
+        // Register the top-level menu before submenu pages bind to it.
+        add_action('admin_menu', [$this, 'addMenu'], 1);
         add_action('admin_post_imgpress_purge_cache', [$this, 'handlePurgeCache']);
     }
 
@@ -38,8 +39,11 @@ class Dashboard
             'imgpress',
             [$this, 'render']
         );
+    }
 
-        remove_submenu_page('imgpress', 'imgpress');
+    public static function menuSlug(): string
+    {
+        return 'imgpress';
     }
 
     public function render(): void
@@ -59,7 +63,7 @@ class Dashboard
                     <p><strong><?php echo esc_html($cacheEnabled ? __('Enabled', 'imgpress-wp') : __('Disabled', 'imgpress-wp')); ?></strong></p>
                     <p><?php echo esc_html(sprintf(__('%d cached pages, %s stored.', 'imgpress-wp'), $this->pageCache->cacheCount(), size_format($this->pageCache->cacheSize()))); ?></p>
                     <p>
-                        <a class="button button-primary" href="<?php echo esc_url(menu_page_url('imgpress-settings', false)); ?>"><?php esc_html_e('Settings', 'imgpress-wp'); ?></a>
+                        <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=imgpress-settings')); ?>"><?php esc_html_e('Settings', 'imgpress-wp'); ?></a>
                         <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=imgpress_purge_cache'), 'imgpress_purge_cache')); ?>"><?php esc_html_e('Purge Cache', 'imgpress-wp'); ?></a>
                         <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=imgpress_preload_cache'), 'imgpress_preload_cache')); ?>"><?php esc_html_e('Preload Cache', 'imgpress-wp'); ?></a>
                     </p>

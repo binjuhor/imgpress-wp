@@ -25,7 +25,7 @@ class Settings
     public function addMenuPage(): void
     {
         add_submenu_page(
-            'imgpress',
+            Dashboard::menuSlug(),
             __('ImgPress Settings', 'imgpress-wp'),
             __('Settings', 'imgpress-wp'),
             'manage_options',
@@ -36,7 +36,7 @@ class Settings
 
     public function enqueueAssets(string $hook): void
     {
-        if (!in_array($hook, ['imgpress_page_imgpress-settings', 'toplevel_page_imgpress'], true)) {
+        if (!in_array($hook, ['imgpress_page_imgpress-settings', 'toplevel_page_imgpress', 'imgpress_page_imgpress', 'imgpress_page_imgpress-bulk', 'imgpress_page_imgpress-r2-bulk'], true)) {
             return;
         }
 

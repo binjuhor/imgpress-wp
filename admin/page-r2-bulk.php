@@ -10,7 +10,7 @@
 				echo wp_kses_post(
 					sprintf(
 						__('R2 is not configured. Please visit <a href="%s">ImgPress → Settings</a> to configure your R2 credentials.', 'imgpress-wp'),
-                    esc_url(menu_page_url('imgpress-settings', false))
+                    esc_url(admin_url('admin.php?page=imgpress-settings'))
 					)
 				);
 				?>

@@ -24,7 +24,7 @@ class R2_Bulk
 	public function addMenuPage(): void
 	{
 		add_submenu_page(
-			'imgpress',
+			Dashboard::menuSlug(),
 			__('ImgPress R2 Offload', 'imgpress-wp'),
 			__('R2 Offload', 'imgpress-wp'),
 			'manage_options',
