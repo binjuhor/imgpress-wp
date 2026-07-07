@@ -306,8 +306,18 @@
                 <table class="form-table" role="presentation">
                     <tr>
                         <td style="padding:12px 0">
-                            <strong><?php esc_html_e('Converted files auto-upload to R2 when R2 is enabled.', 'imgpress-wp'); ?></strong>
-                            <span class="description">This runs after ImgPress successfully converts/compresses the file.</span>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[r2_push_on_compress]"
+                                    value="1"
+                                    <?php checked(!empty($opts['r2_push_on_compress'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Push converted files to R2', 'imgpress-wp'); ?></strong>
+                                    <span class="description">Auto-upload after ImgPress successfully converts/compresses the file.</span>
+                                </span>
+                            </label>
                         </td>
                     </tr>
                     <tr>

@@ -14,9 +14,9 @@
             _ajax_nonce: ImgPressAdmin.nonce.testConnection,
         }, function (res) {
             if (res.success) {
-                $result.css('color', '#00a32a').text('✓ ' + ImgPressAdmin.i18n.connected);
+                $result.css('color', '#00a32a').text('✓ ' + responseMessage(res.data, ImgPressAdmin.i18n.connected));
             } else {
-                $result.css('color', '#d63638').text('✗ ' + (res.data || ImgPressAdmin.i18n.failed));
+                $result.css('color', '#d63638').text('✗ ' + responseMessage(res.data, ImgPressAdmin.i18n.failed));
             }
         }).fail(function () {
             $result.css('color', '#d63638').text('✗ ' + ImgPressAdmin.i18n.requestFailed);
@@ -45,13 +45,12 @@
 
         $.post(ajaxurl, data, function (res) {
             if (res.success) {
-                var message = (res.data && res.data.message) ? res.data.message : ImgPressAdmin.i18n.connected;
                 if (res.data && typeof res.data.publicDomain === 'string') {
                     $('#r2_custom_domain').val(res.data.publicDomain);
                 }
-                $result.css('color', '#00a32a').text('✓ ' + message);
+                $result.css('color', '#00a32a').text('✓ ' + responseMessage(res.data, ImgPressAdmin.i18n.connected));
             } else {
-                $result.css('color', '#d63638').text('✗ ' + (res.data || ImgPressAdmin.i18n.failed));
+                $result.css('color', '#d63638').text('✗ ' + responseMessage(res.data, ImgPressAdmin.i18n.failed));
             }
         }).fail(function () {
             $result.css('color', '#d63638').text('✗ ' + ImgPressAdmin.i18n.requestFailed);
@@ -59,5 +58,17 @@
             $btn.prop('disabled', false).text(ImgPressAdmin.i18n.testR2);
         });
     });
+
+    function responseMessage(data, fallback) {
+        if (typeof data === 'string' && data.length) {
+            return data;
+        }
+
+        if (data && typeof data.message === 'string' && data.message.length) {
+            return data.message;
+        }
+
+        return fallback;
+    }
 
 })(jQuery);

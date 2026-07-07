@@ -108,7 +108,7 @@ class Settings
             'r2_secret_key'       => $this->sanitizeSecret($input['r2_secret_key'] ?? ''),
             'r2_bucket'           => sanitize_text_field($input['r2_bucket'] ?? ''),
             'r2_custom_domain'    => $this->sanitizeHost($input['r2_custom_domain'] ?? ''),
-            'r2_push_on_compress' => !empty($input['r2_enabled']),
+            'r2_push_on_compress' => !empty($input['r2_push_on_compress']),
             'r2_push_on_upload'   => !empty($input['r2_push_on_upload']),
             'r2_delete_local'     => !empty($input['r2_delete_local']),
             'r2_rewrite_content'  => !empty($input['r2_rewrite_content']),
@@ -304,7 +304,7 @@ class Settings
 
     public function isR2PushOnCompress(): bool
     {
-        return $this->isR2Configured();
+        return $this->isR2Configured() && (bool) ($this->options['r2_push_on_compress'] ?? false);
     }
 
     public function isR2PushOnUpload(): bool

@@ -94,23 +94,13 @@ class R2_Bulk
 			'post_status'    => 'inherit',
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
-			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query
-				[
-					'relation' => 'OR',
-					[
-						'key'     => '_imgpress_r2',
-						'compare' => 'NOT EXISTS',
-					],
-					[
-						'key'     => '_imgpress_r2',
-						'value'   => '"status":"uploaded"',
-						'compare' => 'NOT LIKE',
-					],
-				],
-			],
 		]);
 
-		return $query->posts;
+		return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
+			$status = $this->uploader->getStatus($id);
+
+			return !is_array($status) || ($status['status'] ?? '') !== 'uploaded';
+		}));
 	}
 
 	public function enqueueAssets(string $hook): void
