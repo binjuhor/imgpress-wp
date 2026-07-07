@@ -108,7 +108,7 @@ class Settings
             'r2_secret_key'       => $this->sanitizeSecret($input['r2_secret_key'] ?? ''),
             'r2_bucket'           => sanitize_text_field($input['r2_bucket'] ?? ''),
             'r2_custom_domain'    => $this->sanitizeHost($input['r2_custom_domain'] ?? ''),
-            'r2_push_on_compress' => !empty($input['r2_push_on_compress']),
+            'r2_push_on_compress' => !empty($input['r2_enabled']),
             'r2_push_on_upload'   => !empty($input['r2_push_on_upload']),
             'r2_delete_local'     => !empty($input['r2_delete_local']),
             'r2_rewrite_content'  => !empty($input['r2_rewrite_content']),
@@ -125,15 +125,19 @@ class Settings
 
     private function sanitizeHost(string $value): string
     {
+        $value = trim($value);
         if (empty($value)) {
             return '';
         }
+
         $value = sanitize_text_field($value);
-        $parsed = wp_parse_url('https://' . $value, PHP_URL_HOST);
+        $candidate = preg_match('#^https?://#i', $value) ? $value : 'https://' . $value;
+        $parsed = wp_parse_url($candidate, PHP_URL_HOST);
         if ($parsed) {
-            return $parsed;
+            return rtrim($parsed, '/');
         }
-        return preg_replace('#^https?://#', '', $value);
+
+        return rtrim(preg_replace('#^https?://#i', '', $value), '/');
     }
 
     public function handleTestConnection(): void
@@ -165,6 +169,22 @@ class Settings
             wp_send_json_error('Unauthorized', 403);
         }
 
+        if (isset($_POST[self::OPTION_KEY]) && is_array($_POST[self::OPTION_KEY])) {
+            $current = (array) get_option(self::OPTION_KEY, []);
+            $incoming = wp_unslash($_POST[self::OPTION_KEY]);
+            $incoming = array_merge([
+                'auto_compress' => '',
+                'enabled_types' => [],
+                'r2_enabled' => '',
+                'r2_push_on_compress' => '',
+                'r2_push_on_upload' => '',
+                'r2_delete_local' => '',
+                'r2_rewrite_content' => '',
+            ], $incoming);
+            $this->options = $this->sanitize(array_merge($current, $incoming));
+            update_option(self::OPTION_KEY, $this->options);
+        }
+
         if (!$this->isR2Configured()) {
             wp_send_json_error('R2 is not properly configured. Please fill in all required fields.');
         }
@@ -173,7 +193,10 @@ class Settings
         $result = $client->headBucket();
 
         if ($result['ok']) {
-            wp_send_json_success('Connected to R2 bucket');
+            wp_send_json_success([
+                'message' => 'Connected to R2 bucket',
+                'publicDomain' => $this->getR2CustomDomain(),
+            ]);
         } else {
             wp_send_json_error($result['error'] ?? 'Connection failed');
         }
@@ -281,7 +304,7 @@ class Settings
 
     public function isR2PushOnCompress(): bool
     {
-        return (bool) ($this->options['r2_push_on_compress'] ?? false);
+        return $this->isR2Configured();
     }
 
     public function isR2PushOnUpload(): bool
