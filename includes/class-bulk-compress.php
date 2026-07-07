@@ -81,7 +81,30 @@ class Bulk_Compress
             ]],
         ]);
 
-        return $query->posts;
+        return array_values(array_filter(array_map('intval', $query->posts), function (int $attachmentId): bool {
+            $mime = (string) get_post_mime_type($attachmentId);
+
+            if ($mime === '' || $this->isFontMime($mime)) {
+                return false;
+            }
+
+            return $this->settings->isTypeEnabled($mime);
+        }));
+    }
+
+    private function isFontMime(string $mime): bool
+    {
+        $mime = strtolower($mime);
+
+        return str_starts_with($mime, 'font/')
+            || str_starts_with($mime, 'application/font')
+            || in_array($mime, [
+                'application/x-font-ttf',
+                'application/x-font-otf',
+                'application/x-font-woff',
+                'application/x-font-woff2',
+                'application/vnd.ms-fontobject',
+            ], true);
     }
 
     public function enqueueAssets(string $hook): void
