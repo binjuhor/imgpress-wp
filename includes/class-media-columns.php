@@ -14,9 +14,11 @@ class Media_Columns
         add_filter('manage_media_columns',        [$this, 'addColumn']);
         add_action('manage_media_custom_column',  [$this, 'renderColumn'], 10, 2);
         add_action('wp_ajax_imgpress_compress_single', [$this, 'handleAjaxSingle']);
+        add_action('wp_ajax_imgpress_restore_original', [$this, 'handleRestoreOriginal']);
         add_action('wp_ajax_imgpress_r2_push',   [$this, 'handleR2Push']);
         add_action('wp_ajax_imgpress_r2_remove', [$this, 'handleR2Remove']);
         add_action('admin_enqueue_scripts',       [$this, 'enqueueAssets']);
+        add_action('delete_attachment',           [$this, 'handleDeleteAttachment']);
     }
 
     public function addColumn(array $columns): array
@@ -43,6 +45,10 @@ class Media_Columns
             echo "<span class=\"ip-badge ip-badge--{$tier}\">−{$ratio}%</span>";
             echo "<span class=\"ip-sizes\">{$origKb} → {$compKb} KB</span>";
             echo "<span class=\"ip-date\">{$date}</span>";
+            if ($this->compressor->canRestore($postId)) {
+                echo "<button class=\"button ip-restore-btn\" data-id=\"{$postId}\">Restore original</button>";
+                echo "<span class=\"ip-restore-result\"></span>";
+            }
         } else {
             $mime = get_post_mime_type($postId);
             if ($mime && $this->settings->isTypeEnabled($mime)) {
@@ -80,6 +86,37 @@ class Media_Columns
 
         $stats = $this->compressor->getStats($attachmentId);
         wp_send_json_success($stats);
+    }
+
+    public function handleRestoreOriginal(): void
+    {
+        check_ajax_referer('imgpress_compress_single');
+
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error('Unauthorized', 403);
+        }
+
+        $attachmentId = (int) ($_POST['id'] ?? 0);
+        if (!$attachmentId) {
+            wp_send_json_error('Invalid ID');
+        }
+
+        $ok = $this->compressor->restore($attachmentId);
+
+        if (!$ok) {
+            wp_send_json_error('Restore failed — original backup is missing or unreadable.');
+        }
+
+        wp_send_json_success([
+            'id' => $attachmentId,
+            'mime' => get_post_mime_type($attachmentId),
+            'file' => basename(get_attached_file($attachmentId) ?: ''),
+        ]);
+    }
+
+    public function handleDeleteAttachment(int $attachmentId): void
+    {
+        $this->compressor->deleteOriginalBackup($attachmentId);
     }
 
     public function handleR2Push(): void

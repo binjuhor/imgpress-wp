@@ -23,7 +23,8 @@
                     '<span class="ip-badge ip-badge--' + tier + '">−' + s.ratio.toFixed(1) + '%</span>' +
                     '<span class="ip-sizes">' +
                         formatBytes(s.originalSize) + ' → ' + formatBytes(s.compressedSize) +
-                    '</span>'
+                    '</span>' +
+                    (s.canRestore ? '<button class="button ip-restore-btn" data-id="' + id + '">Restore original</button><span class="ip-restore-result"></span>' : '')
                 );
             } else {
                 $btn.prop('disabled', false).text('Compress');
@@ -31,6 +32,38 @@
             }
         }).fail(function () {
             $btn.prop('disabled', false).text('Compress');
+            $result.html('<span class="ip-err">Request failed</span>');
+        });
+    });
+
+    // ── Media Library: restore original button ───────────────────────────────
+
+    $(document).on('click', '.ip-restore-btn', function () {
+        var $btn    = $(this);
+        var $result = $btn.siblings('.ip-restore-result');
+        var id      = $btn.data('id');
+
+        if (!confirm('Restore the original media file?\n\nThe optimized file will be replaced locally.')) {
+            return;
+        }
+
+        $btn.prop('disabled', true).text('Restoring…');
+        $result.text('');
+
+        $.post(ImgPressAdmin.ajaxUrl, {
+            action:      'imgpress_restore_original',
+            _ajax_nonce: ImgPressAdmin.nonce,
+            id:          id,
+        }, function (res) {
+            if (res.success) {
+                $result.html('<span class="ip-ok">Restored</span>');
+                window.location.reload();
+            } else {
+                $btn.prop('disabled', false).text('Restore original');
+                $result.html('<span class="ip-err">Restore failed</span>');
+            }
+        }).fail(function () {
+            $btn.prop('disabled', false).text('Restore original');
             $result.html('<span class="ip-err">Request failed</span>');
         });
     });

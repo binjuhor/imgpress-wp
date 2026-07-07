@@ -35,6 +35,10 @@ class Compressor
             return false;
         }
 
+        if (!$this->backupOriginal($attachmentId, $filePath, $mime)) {
+            return false;
+        }
+
         $targetPath = $this->getTargetPath($filePath, $mime, $result['mime']);
 
         if (file_put_contents($targetPath, $result['data']) === false) {
@@ -77,6 +81,88 @@ class Compressor
         return true;
     }
 
+    public function restore(int $attachmentId): bool
+    {
+        $backup = $this->getOriginalBackup($attachmentId);
+        if (!$backup) {
+            return false;
+        }
+
+        $backupPath = $this->absoluteUploadPath($backup['backup_file']);
+        if (!$backupPath || !file_exists($backupPath)) {
+            return false;
+        }
+
+        $currentPath = get_attached_file($attachmentId);
+        $restorePath = $this->absoluteUploadPath($backup['source_file']);
+        if (!$restorePath) {
+            return false;
+        }
+
+        $restoreDir = dirname($restorePath);
+        if (!wp_mkdir_p($restoreDir)) {
+            error_log("[ImgPress] Cannot create restore directory: {$restoreDir}");
+            return false;
+        }
+
+        if ($this->r2Uploader->getStatus($attachmentId)) {
+            $this->r2Uploader->remove($attachmentId);
+        }
+
+        if ($currentPath && str_starts_with((string) get_post_mime_type($attachmentId), 'image/')) {
+            $this->deleteOldImageFiles($attachmentId, $currentPath);
+        }
+
+        if (!copy($backupPath, $restorePath)) {
+            error_log("[ImgPress] Cannot restore original file: {$restorePath}");
+            return false;
+        }
+
+        update_attached_file($attachmentId, $restorePath);
+        wp_update_post([
+            'ID' => $attachmentId,
+            'post_mime_type' => $backup['mime'],
+        ]);
+
+        if (str_starts_with($backup['mime'], 'image/')) {
+            $metadata = wp_generate_attachment_metadata($attachmentId, $restorePath);
+            wp_update_attachment_metadata($attachmentId, $metadata);
+        }
+
+        if ($currentPath && $currentPath !== $restorePath && file_exists($currentPath)) {
+            wp_delete_file($currentPath);
+        }
+
+        delete_post_meta($attachmentId, '_imgpress_original_size');
+        delete_post_meta($attachmentId, '_imgpress_compressed_size');
+        delete_post_meta($attachmentId, '_imgpress_ratio');
+        delete_post_meta($attachmentId, '_imgpress_compressed_at');
+        delete_post_meta($attachmentId, '_imgpress_mime_out');
+        delete_post_meta($attachmentId, '_imgpress_r2');
+
+        return true;
+    }
+
+    public function canRestore(int $attachmentId): bool
+    {
+        return $this->getOriginalBackup($attachmentId) !== null;
+    }
+
+    public function deleteOriginalBackup(int $attachmentId): void
+    {
+        $backup = $this->getOriginalBackup($attachmentId);
+        if (!$backup) {
+            return;
+        }
+
+        $backupPath = $this->absoluteUploadPath($backup['backup_file']);
+        if ($backupPath && file_exists($backupPath)) {
+            wp_delete_file($backupPath);
+        }
+
+        delete_post_meta($attachmentId, '_imgpress_original_backup');
+    }
+
     public function getStats(int $attachmentId): ?array
     {
         $compressedAt = get_post_meta($attachmentId, '_imgpress_compressed_at', true);
@@ -91,6 +177,7 @@ class Compressor
             'ratio'          => (float) get_post_meta($attachmentId, '_imgpress_ratio', true),
             'compressedAt'   => $compressedAt,
             'mimeOut'        => get_post_meta($attachmentId, '_imgpress_mime_out', true),
+            'canRestore'     => $this->canRestore($attachmentId),
         ];
     }
 
@@ -149,5 +236,62 @@ class Compressor
                 wp_delete_file($sizePath);
             }
         }
+    }
+
+    private function backupOriginal(int $attachmentId, string $filePath, string $mime): bool
+    {
+        $existing = $this->getOriginalBackup($attachmentId);
+        if ($existing) {
+            return true;
+        }
+
+        if (!file_exists($filePath)) {
+            return false;
+        }
+
+        $uploads = wp_upload_dir();
+        $relativeBackup = 'imgpress-originals/' . $attachmentId . '/' . basename($filePath);
+        $backupPath = trailingslashit($uploads['basedir']) . $relativeBackup;
+        $backupDir = dirname($backupPath);
+
+        if (!wp_mkdir_p($backupDir)) {
+            error_log("[ImgPress] Cannot create original backup directory: {$backupDir}");
+            return false;
+        }
+
+        if (!copy($filePath, $backupPath)) {
+            error_log("[ImgPress] Cannot back up original file: {$filePath}");
+            return false;
+        }
+
+        update_post_meta($attachmentId, '_imgpress_original_backup', [
+            'backup_file' => $relativeBackup,
+            'source_file' => _wp_relative_upload_path($filePath) ?: basename($filePath),
+            'mime' => $mime,
+            'size' => filesize($filePath) ?: 0,
+            'created_at' => current_time('mysql'),
+        ]);
+
+        return true;
+    }
+
+    private function getOriginalBackup(int $attachmentId): ?array
+    {
+        $backup = get_post_meta($attachmentId, '_imgpress_original_backup', true);
+        if (!is_array($backup) || empty($backup['backup_file']) || empty($backup['source_file']) || empty($backup['mime'])) {
+            return null;
+        }
+
+        return $backup;
+    }
+
+    private function absoluteUploadPath(string $relativePath): ?string
+    {
+        $uploads = wp_upload_dir();
+        if (empty($uploads['basedir'])) {
+            return null;
+        }
+
+        return trailingslashit($uploads['basedir']) . ltrim($relativePath, '/');
     }
 }
