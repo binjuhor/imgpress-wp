@@ -58,20 +58,24 @@ add_action('plugins_loaded', function (): void {
 
     $pageCache = new ImgPress\Page_Cache($settings, $logger);
     $assetOptimizer = new ImgPress\Asset_Optimizer($settings, $logger);
-    $htmlOptimizer = new ImgPress\Html_Optimizer($settings);
+    $htmlOptimizer = new ImgPress\Html_Optimizer($settings, $logger);
+    $preload = new ImgPress\Preload($settings, $logger, $jobs, $pageCache);
+    $bloat = new ImgPress\Bloat($settings);
 
     new ImgPress\Auto_Compress($compressor, $r2Uploader, $settings);
     new ImgPress\Media_Columns($compressor, $settings, $r2Uploader);
     new ImgPress\Bulk_Compress($compressor, $settings);
     new ImgPress\R2_Bulk($r2Uploader, $settings);
     new ImgPress\R2_URL_Rewriter($settings);
-    new ImgPress\Dashboard($settings, $logger, $pageCache, $compatibility);
+    new ImgPress\Dashboard($settings, $logger, $pageCache, $compatibility, $preload, $assetOptimizer);
 
     $jobs->init();
     $compatibility->init();
     $pageCache->init();
     $assetOptimizer->init();
     $htmlOptimizer->init();
+    $preload->init();
+    $bloat->init();
 
     // Make $settings available globally for page templates
     $GLOBALS['imgpress_settings'] = $settings;

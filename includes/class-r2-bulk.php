@@ -23,9 +23,10 @@ class R2_Bulk
 
 	public function addMenuPage(): void
 	{
-		add_media_page(
-			'ImgPress R2 Offload',
-			'Bulk Offload to R2',
+		add_submenu_page(
+			'imgpress',
+			__('ImgPress R2 Offload', 'imgpress-wp'),
+			__('R2 Offload', 'imgpress-wp'),
 			'upload_files',
 			'imgpress-r2-bulk',
 			fn() => require IMGPRESS_WP_DIR . 'admin/page-r2-bulk.php'
@@ -105,7 +106,7 @@ class R2_Bulk
 
 	public function enqueueAssets(string $hook): void
 	{
-		if ($hook !== 'media_page_imgpress-r2-bulk') {
+		if ($hook !== 'imgpress_page_imgpress-r2-bulk') {
 			return;
 		}
 

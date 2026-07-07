@@ -1,6 +1,6 @@
 <?php defined('ABSPATH') || exit; ?>
 <div class="wrap">
-    <h1><?php esc_html_e('Bulk Compress', 'imgpress-wp'); ?></h1>
+    <h1><?php esc_html_e('ImgPress Bulk Compress', 'imgpress-wp'); ?></h1>
     <p class="description"><?php esc_html_e('Compress all unoptimized media in your library.', 'imgpress-wp'); ?></p>
 
     <div class="card" style="max-width:800px;margin-top:16px;padding:20px 24px">

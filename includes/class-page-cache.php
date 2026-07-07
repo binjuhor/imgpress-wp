@@ -17,8 +17,8 @@ class Page_Cache
     public function init(): void
     {
         add_action('template_redirect', [$this, 'maybeServe'], 0);
-        add_action('save_post', [$this, 'purgeAll']);
-        add_action('deleted_post', [$this, 'purgeAll']);
+        add_action('save_post', [$this, 'purgeRelated'], 10, 3);
+        add_action('deleted_post', [$this, 'purgeRelated']);
         add_action('switch_theme', [$this, 'purgeAll']);
         add_action('comment_post', [$this, 'purgeAll']);
         add_action('edit_comment', [$this, 'purgeAll']);
@@ -82,6 +82,64 @@ class Page_Cache
         }
 
         return $deleted;
+    }
+
+    public function purgeUrl(string $url): bool
+    {
+        $file = $this->cacheFileForUrl($url);
+        $meta = $file . '.json';
+        $ok = true;
+
+        if (is_file($file)) {
+            $ok = unlink($file) && $ok;
+        }
+
+        if (is_file($meta)) {
+            $ok = unlink($meta) && $ok;
+        }
+
+        return $ok;
+    }
+
+    public function purgeUrls(array $urls): bool
+    {
+        $ok = true;
+        foreach ($urls as $url) {
+            $ok = $this->purgeUrl((string) $url) && $ok;
+        }
+
+        return $ok;
+    }
+
+    public function warmUrl(string $url): void
+    {
+        $response = wp_remote_get($url, [
+            'timeout' => 15,
+            'redirection' => 3,
+            'headers' => [
+                'X-ImgPress-Preload' => '1',
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            $this->logger->warning('Cache preload request failed.', [
+                'url' => $url,
+                'error' => $response->get_error_message(),
+            ]);
+        }
+    }
+
+    public function purgeRelated(int $postId = 0, ?\WP_Post $post = null, bool $update = false): void
+    {
+        $urls = $this->relatedUrls($postId, $post);
+        if (empty($urls)) {
+            return;
+        }
+
+        $this->purgeUrls($urls);
+        $this->logger->info('Related cache purged.', [
+            'post_id' => (string) $postId,
+        ]);
     }
 
     public function cacheCount(): int
@@ -156,7 +214,12 @@ class Page_Cache
 
     private function cacheFile(): string
     {
-        return $this->cacheDir() . '/' . md5($this->currentUrl()) . '.html';
+        return $this->cacheFileForUrl($this->currentUrl());
+    }
+
+    public function cacheFileForUrl(string $url): string
+    {
+        return $this->cacheDir() . '/' . md5($url) . '.html';
     }
 
     private function currentUrl(): string
@@ -225,5 +288,39 @@ class Page_Cache
         }
 
         return $ok;
+    }
+
+    private function relatedUrls(int $postId, ?\WP_Post $post = null): array
+    {
+        $post = $post ?: get_post($postId);
+        if (!$post instanceof \WP_Post || $post->post_status !== 'publish') {
+            return [home_url('/')];
+        }
+
+        $urls = [home_url('/'), get_permalink($postId)];
+        $archive = get_post_type_archive_link($post->post_type);
+        if ($archive) {
+            $urls[] = $archive;
+        }
+
+        foreach (get_object_taxonomies($post->post_type) as $taxonomy) {
+            $terms = get_the_terms($postId, $taxonomy);
+            if (!is_array($terms)) {
+                continue;
+            }
+
+            foreach ($terms as $term) {
+                if (empty($term->term_id)) {
+                    continue;
+                }
+
+                $link = get_term_link($term);
+                if (!is_wp_error($link)) {
+                    $urls[] = $link;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($urls)));
     }
 }
