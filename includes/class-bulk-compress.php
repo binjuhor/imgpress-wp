@@ -18,10 +18,11 @@ class Bulk_Compress
 
     public function addMenuPage(): void
     {
-        add_media_page(
-            'ImgPress Bulk Compress',
-            'Bulk Compress',
-            'upload_files',
+        add_submenu_page(
+            Dashboard::menuSlug(),
+            __('ImgPress Bulk Compress', 'imgpress-wp'),
+            __('Bulk Compress', 'imgpress-wp'),
+            'manage_options',
             'imgpress-bulk',
             fn() => require IMGPRESS_WP_DIR . 'admin/page-bulk.php'
         );
@@ -85,7 +86,7 @@ class Bulk_Compress
 
     public function enqueueAssets(string $hook): void
     {
-        if ($hook !== 'media_page_imgpress-bulk') {
+        if ($hook !== 'imgpress_page_imgpress-bulk') {
             return;
         }
 

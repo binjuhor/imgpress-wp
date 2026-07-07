@@ -1,6 +1,6 @@
 <?php defined('ABSPATH') || exit; ?>
 <div class="wrap">
-	<h1><?php esc_html_e('Bulk Offload to R2', 'imgpress-wp'); ?></h1>
+	<h1><?php esc_html_e('ImgPress R2 Offload', 'imgpress-wp'); ?></h1>
 	<p class="description"><?php esc_html_e('Upload your entire media library to Cloudflare R2.', 'imgpress-wp'); ?></p>
 
 	<?php if (!$GLOBALS['imgpress_settings']->isR2Configured()) : ?>
@@ -9,8 +9,8 @@
 				<?php
 				echo wp_kses_post(
 					sprintf(
-						__('R2 is not configured. Please visit <a href="%s">Settings → ImgPress</a> to configure your R2 credentials.', 'imgpress-wp'),
-						esc_url(admin_url('options-general.php?page=imgpress-settings'))
+						__('R2 is not configured. Please visit <a href="%s">ImgPress → Settings</a> to configure your R2 credentials.', 'imgpress-wp'),
+                    esc_url(admin_url('admin.php?page=imgpress-settings'))
 					)
 				);
 				?>

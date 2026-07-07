@@ -13,6 +13,26 @@
     $width      = (int) ($opts['max_width'] ?? 1600);
     $types      = (array) ($opts['enabled_types'] ?? ['image', 'pdf', 'audio', 'video']);
     $timeout    = (int) ($opts['request_timeout'] ?? 120);
+    $cacheEnabled = !empty($opts['cache_enabled']);
+    $cacheLifespan = (int) ($opts['cache_lifespan'] ?? DAY_IN_SECONDS);
+    $cacheExcludedUrls = (string) ($opts['cache_excluded_urls'] ?? "/wp-admin/*\n/wp-login.php*");
+    $cacheExcludedCookies = (string) ($opts['cache_excluded_cookies'] ?? "wordpress_logged_in_\nwp-postpass_\nwoocommerce_items_in_cart");
+    $cacheIgnoredQueryArgs = (string) ($opts['cache_ignored_query_args'] ?? "utm_source\nutm_medium\nutm_campaign\nutm_content\nutm_term\nfbclid\ngclid");
+    $optimizeExcludedAssets = (string) ($opts['optimize_excluded_assets'] ?? '');
+    $rucssMethod = $opts['optimize_css_rucss_method'] ?? 'async';
+    $jsDelayMethod = $opts['optimize_js_delay_method'] ?? 'selected';
+    $rucssExcludeStylesheets = (string) ($opts['optimize_css_rucss_exclude_stylesheets'] ?? '');
+    $rucssIncludeSelectors = (string) ($opts['optimize_css_rucss_include_selectors'] ?? '');
+    $jsDeferExcludes = (string) ($opts['optimize_js_defer_excludes'] ?? '');
+    $jsDelayAllExcludes = (string) ($opts['optimize_js_delay_all_excludes'] ?? '');
+    $jsDelaySelected = (string) ($opts['optimize_js_delay_selected'] ?? '');
+    $bloatJqueryMigrate = !empty($opts['bloat_disable_jquery_migrate']);
+    $bloatEmojis = !empty($opts['bloat_disable_emojis']);
+    $bloatBlockCss = !empty($opts['bloat_disable_block_css']);
+    $bloatOEmbeds = !empty($opts['bloat_disable_oembeds']);
+    $bloatDashicons = !empty($opts['bloat_disable_dashicons']);
+    $bloatXmlRpc = !empty($opts['bloat_disable_xml_rpc']);
+    $bloatRssFeed = !empty($opts['bloat_disable_rss_feed']);
     ?>
 
     <!-- Tab Navigation -->
@@ -28,6 +48,18 @@
         <button class="imgpress-tab-button" data-tab="files" role="tab" aria-controls="files" aria-selected="false">
             <span class="dashicons dashicons-media-document"></span>
             <span><?php esc_html_e('File Types', 'imgpress-wp'); ?></span>
+        </button>
+        <button class="imgpress-tab-button" data-tab="cache" role="tab" aria-controls="cache" aria-selected="false">
+            <span class="dashicons dashicons-performance"></span>
+            <span><?php esc_html_e('Cache', 'imgpress-wp'); ?></span>
+        </button>
+        <button class="imgpress-tab-button" data-tab="assets" role="tab" aria-controls="assets" aria-selected="false">
+            <span class="dashicons dashicons-editor-code"></span>
+            <span><?php esc_html_e('CSS / JS', 'imgpress-wp'); ?></span>
+        </button>
+        <button class="imgpress-tab-button" data-tab="bloat" role="tab" aria-controls="bloat" aria-selected="false">
+            <span class="dashicons dashicons-no-alt"></span>
+            <span><?php esc_html_e('Bloat', 'imgpress-wp'); ?></span>
         </button>
     </div>
 
@@ -81,6 +113,10 @@
                             <span class="description" style="display:inline;margin-left:4px">
                                 <?php esc_html_e('seconds', 'imgpress-wp'); ?>
                             </span>
+                            <strong id="ip-cache-lifespan-human" style="display:inline-block;margin-left:8px"></strong>
+                            <p class="description">
+                                <?php esc_html_e('Example: 3600 seconds = 1 hour, 86400 seconds = 1 day, 604800 seconds = 7 days.', 'imgpress-wp'); ?>
+                            </p>
                         </td>
                     </tr>
                 </table>
@@ -195,7 +231,7 @@
                             </label>
                             <p class="description">
                                 <?php esc_html_e('Enable Cloudflare R2 media storage.', 'imgpress-wp'); ?>
-                                <a href="<?php echo esc_url(admin_url('upload.php?page=imgpress-r2-bulk')); ?>" target="_blank">
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-r2-bulk')); ?>" target="_blank">
                                     <?php esc_html_e('View R2 Setup Guide →', 'imgpress-wp'); ?>
                                 </a>
                             </p>
@@ -429,19 +465,480 @@
             </div>
         </div>
 
+        <!-- Tab 4: Cache -->
+        <div class="imgpress-tab-content" id="cache" role="tabpanel" hidden>
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-performance"></span>
+                    <?php esc_html_e('Page Cache', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Enable Cache', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label for="ip_cache_enabled" class="imgpress-toggle">
+                                <input
+                                    type="checkbox"
+                                    id="ip_cache_enabled"
+                                    name="imgpress_wp_options[cache_enabled]"
+                                    value="1"
+                                    <?php checked($cacheEnabled); ?>
+                                />
+                                <span></span>
+                            </label>
+                            <p class="description">
+                                <?php esc_html_e('Opt-in page caching. Keep this off when another page cache plugin owns caching for the site.', 'imgpress-wp'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_lifespan"><?php esc_html_e('Cache Lifespan', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <input
+                                type="number"
+                                id="ip_cache_lifespan"
+                                name="imgpress_wp_options[cache_lifespan]"
+                                value="<?php echo esc_attr($cacheLifespan); ?>"
+                                class="regular-text"
+                                min="<?php echo esc_attr(MINUTE_IN_SECONDS); ?>"
+                                max="<?php echo esc_attr(MONTH_IN_SECONDS); ?>"
+                            />
+                            <span class="description" style="display:inline;margin-left:4px">
+                                <?php esc_html_e('seconds', 'imgpress-wp'); ?>
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('advanced-cache.php', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_advanced_dropin]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_advanced_dropin'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Install ImgPress advanced cache drop-in', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Only ImgPress-owned drop-ins are overwritten or removed.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                            <p class="description">
+                                <?php echo esc_html(sprintf(__('Status: %s', 'imgpress-wp'), ImgPress\Cache_Dropin::isInstalled() ? __('installed', 'imgpress-wp') : __('not installed', 'imgpress-wp'))); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Background Tasks', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_preload]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_preload'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Preload cache after purge', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Uses Action Scheduler when available and falls back to WP-Cron.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Logged-in Users', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_logged_in]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_logged_in'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Cache logged-in requests', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Leave disabled for membership, account, cart, and dashboard-heavy sites.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-filter"></span>
+                    <?php esc_html_e('Cache Rules', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_excluded_urls"><?php esc_html_e('Excluded URLs', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_cache_excluded_urls"
+                                name="imgpress_wp_options[cache_excluded_urls]"
+                                rows="5"
+                                class="large-text code"
+                            ><?php echo esc_textarea($cacheExcludedUrls); ?></textarea>
+                            <p class="description"><?php esc_html_e('One path or wildcard pattern per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_excluded_cookies"><?php esc_html_e('Excluded Cookies', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_cache_excluded_cookies"
+                                name="imgpress_wp_options[cache_excluded_cookies]"
+                                rows="5"
+                                class="large-text code"
+                            ><?php echo esc_textarea($cacheExcludedCookies); ?></textarea>
+                            <p class="description"><?php esc_html_e('One cookie name or partial cookie name per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_cache_ignored_query_args"><?php esc_html_e('Ignored Query Args', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_cache_ignored_query_args"
+                                name="imgpress_wp_options[cache_ignored_query_args]"
+                                rows="5"
+                                class="large-text code"
+                            ><?php echo esc_textarea($cacheIgnoredQueryArgs); ?></textarea>
+                            <p class="description"><?php esc_html_e('Tracking query strings listed here share the same cache file.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 5: CSS / JS -->
+        <div class="imgpress-tab-content" id="assets" role="tabpanel" hidden>
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-editor-code"></span>
+                    <?php esc_html_e('CSS / JS Optimization', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <td style="padding:12px 0">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_css_minify]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_css_minify'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Minify CSS files', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Creates optimized CSS copies in wp-content/cache/imgpress/assets.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_css_rucss]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_css_rucss'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Remove unused CSS', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Generates used CSS from the current page HTML and keeps the rest async or removed.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px">
+                            <label for="ip_rucss_method" class="screen-reader-text"><?php esc_html_e('Remove unused CSS method', 'imgpress-wp'); ?></label>
+                            <select id="ip_rucss_method" name="imgpress_wp_options[optimize_css_rucss_method]" class="imgpress-select">
+                                <option value="async" <?php selected($rucssMethod, 'async'); ?>><?php esc_html_e('Async', 'imgpress-wp'); ?></option>
+                                <option value="remove" <?php selected($rucssMethod, 'remove'); ?>><?php esc_html_e('Remove stylesheet', 'imgpress-wp'); ?></option>
+                                <option value="interaction" <?php selected($rucssMethod, 'interaction'); ?>><?php esc_html_e('Load on interaction', 'imgpress-wp'); ?></option>
+                            </select>
+                            <p class="description"><?php esc_html_e('Async keeps the stylesheet but loads it later. Remove deletes the original tag. Interaction waits for user activity.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <textarea
+                                id="ip_rucss_exclude_stylesheets"
+                                name="imgpress_wp_options[optimize_css_rucss_exclude_stylesheets]"
+                                rows="4"
+                                class="large-text code"
+                                placeholder="bootstrap.css&#10;woocommerce"
+                            ><?php echo esc_textarea($rucssExcludeStylesheets); ?></textarea>
+                            <p class="description"><?php esc_html_e('One stylesheet URL fragment, filename, or handle keyword per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <textarea
+                                id="ip_rucss_include_selectors"
+                                name="imgpress_wp_options[optimize_css_rucss_include_selectors]"
+                                rows="4"
+                                class="large-text code"
+                                placeholder=".header&#10;.hero&#10;#main"
+                            ><?php echo esc_textarea($rucssIncludeSelectors); ?></textarea>
+                            <p class="description"><?php esc_html_e('Force-keep selectors even if they are not detected in the initial HTML pass.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_js_minify]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_js_minify'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Minify JavaScript files', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Uses the same Matthias Mullie minifier package used by FlyingPress.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_js_defer]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_js_defer'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Defer JavaScript', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Adds defer to local script tags except excluded handles or URLs.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <textarea
+                                id="ip_js_defer_excludes"
+                                name="imgpress_wp_options[optimize_js_defer_excludes]"
+                                rows="4"
+                                class="large-text code"
+                                placeholder="jquery&#10;woocommerce"
+                            ><?php echo esc_textarea($jsDeferExcludes); ?></textarea>
+                            <p class="description"><?php esc_html_e('One script handle or URL fragment per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_js_delay]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_js_delay'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Delay JavaScript', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Loads selected scripts after user interaction.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px">
+                            <select id="ip_js_delay_method" name="imgpress_wp_options[optimize_js_delay_method]" class="imgpress-select">
+                                <option value="selected" <?php selected($jsDelayMethod, 'selected'); ?>><?php esc_html_e('Selected scripts', 'imgpress-wp'); ?></option>
+                                <option value="all" <?php selected($jsDelayMethod, 'all'); ?>><?php esc_html_e('All scripts except exclusions', 'imgpress-wp'); ?></option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <textarea
+                                id="ip_js_delay_selected"
+                                name="imgpress_wp_options[optimize_js_delay_selected]"
+                                rows="4"
+                                class="large-text code"
+                                placeholder="googletagmanager.com&#10;analytics.js"
+                            ><?php echo esc_textarea($jsDelaySelected); ?></textarea>
+                            <p class="description"><?php esc_html_e('Used when “Selected scripts” is active. One keyword per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <textarea
+                                id="ip_js_delay_all_excludes"
+                                name="imgpress_wp_options[optimize_js_delay_all_excludes]"
+                                rows="4"
+                                class="large-text code"
+                                placeholder="jquery&#10;wp-includes"
+                            ><?php echo esc_textarea($jsDelayAllExcludes); ?></textarea>
+                            <p class="description"><?php esc_html_e('Used when “All scripts except exclusions” is active. One keyword per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_html_minify]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_html_minify'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Minify HTML output', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes extra whitespace and regular HTML comments from frontend responses.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-filter"></span>
+                    <?php esc_html_e('Asset Exclusions', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="ip_optimize_excluded_assets"><?php esc_html_e('Excluded CSS / JS', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <textarea
+                                id="ip_optimize_excluded_assets"
+                                name="imgpress_wp_options[optimize_excluded_assets]"
+                                rows="6"
+                                class="large-text code"
+                            ><?php echo esc_textarea($optimizeExcludedAssets); ?></textarea>
+                            <p class="description"><?php esc_html_e('One URL fragment, filename, handle keyword, or folder path per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 6: Bloat -->
+        <div class="imgpress-tab-content" id="bloat" role="tabpanel" hidden>
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-no-alt"></span>
+                    <?php esc_html_e('Disable Unused Assets', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <td style="padding:12px 0">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_jquery_migrate]" value="1" <?php checked($bloatJqueryMigrate); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Remove jQuery Migrate', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes the jQuery migrate dependency from frontend scripts.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_emojis]" value="1" <?php checked($bloatEmojis); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable Emojis', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes emoji scripts, styles, and feed/email emoji filters.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_block_css]" value="1" <?php checked($bloatBlockCss); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable Block CSS', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Dequeues WordPress block CSS and WooCommerce block styles on the frontend.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_oembeds]" value="1" <?php checked($bloatOEmbeds); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable oEmbeds', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes embed discovery links and the wp-embed script.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_dashicons]" value="1" <?php checked($bloatDashicons); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable Dashicons for visitors', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Stops loading Dashicons for logged-out frontend visitors.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_xml_rpc]" value="1" <?php checked($bloatXmlRpc); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable XML-RPC', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Blocks XML-RPC access site-wide.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_rss_feed]" value="1" <?php checked($bloatRssFeed); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable RSS Feeds', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Returns a 404 for RSS and Atom feed requests.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="imgpress-actions">
             <div class="imgpress-save">
                 <?php submit_button(__('Save Changes', 'imgpress-wp'), 'primary', 'submit', false); ?>
             </div>
             <div class="imgpress-links">
-                <a href="<?php echo esc_url(admin_url('upload.php?page=imgpress-bulk')); ?>" class="button">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-bulk')); ?>" class="button">
                     <span class="dashicons dashicons-format-gallery"></span>
                     <?php esc_html_e('Bulk Compress', 'imgpress-wp'); ?>
                 </a>
-                <a href="<?php echo esc_url(admin_url('upload.php?page=imgpress-r2-bulk')); ?>" class="button">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-r2-bulk')); ?>" class="button">
                     <span class="dashicons dashicons-cloud-upload"></span>
                     <?php esc_html_e('Bulk Offload to R2', 'imgpress-wp'); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress')); ?>" class="button">
+                    <span class="dashicons dashicons-performance"></span>
+                    <?php esc_html_e('Dashboard', 'imgpress-wp'); ?>
+                </a>
+                <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=imgpress_purge_asset_cache'), 'imgpress_purge_asset_cache')); ?>" class="button">
+                    <span class="dashicons dashicons-trash"></span>
+                    <?php esc_html_e('Purge Asset Cache', 'imgpress-wp'); ?>
                 </a>
             </div>
         </div>

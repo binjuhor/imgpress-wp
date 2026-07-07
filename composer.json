@@ -1,0 +1,19 @@
+{
+  "name": "binjuhor/imgpress-wp",
+  "description": "WordPress media compression and Cloudflare R2 offload plugin.",
+  "type": "wordpress-plugin",
+  "license": "MIT",
+  "autoload": {
+    "classmap": [
+      "includes/"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  },
+  "require": {
+    "matthiasmullie/minify": "^1.3",
+    "wa72/url": "^0.7.1"
+  }
+}
