@@ -1,30 +1,46 @@
 (function ($) {
     'use strict';
 
+    function activateTab(tab) {
+        var $tabBtn = $('.imgpress-tab-button[data-tab="' + tab + '"]');
+        var $tabContent = $('#' + tab);
+
+        if (!$tabBtn.length || !$tabContent.length) {
+            tab = 'compression';
+            $tabBtn = $('.imgpress-tab-button[data-tab="' + tab + '"]');
+            $tabContent = $('#' + tab);
+        }
+
+        $('.imgpress-tab-button')
+            .removeClass('active')
+            .attr('aria-selected', 'false');
+        $('.imgpress-tab-content')
+            .removeClass('active')
+            .attr('hidden', true);
+
+        $tabBtn
+            .addClass('active')
+            .attr('aria-selected', 'true');
+        $tabContent
+            .addClass('active')
+            .removeAttr('hidden');
+
+        localStorage.setItem('imgpress_active_tab', tab);
+    }
+
     // Tab switching for settings page
     $('.imgpress-tab-button').on('click', function (e) {
         e.preventDefault();
         var tab = $(this).data('tab');
 
-        $('.imgpress-tab-button').removeClass('active');
-        $('.imgpress-tab-content').removeClass('active');
-
-        $(this).addClass('active');
-        $('#' + tab).addClass('active');
-
-        // Save tab preference
-        localStorage.setItem('imgpress_active_tab', tab);
+        activateTab(tab);
     });
 
     // Restore active tab on page load
     $(document).ready(function () {
         var activeTab = localStorage.getItem('imgpress_active_tab') || 'compression';
-        var $tabBtn = $('[data-tab="' + activeTab + '"]');
 
-        if ($tabBtn.length) {
-            $tabBtn.addClass('active');
-            $('#' + activeTab).addClass('active');
-        }
+        activateTab(activeTab);
     });
 
     // Quality slider value display

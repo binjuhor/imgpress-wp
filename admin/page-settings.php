@@ -16,16 +16,16 @@
     ?>
 
     <!-- Tab Navigation -->
-    <div class="imgpress-tabs-nav">
-        <button class="imgpress-tab-button active" data-tab="compression">
+    <div class="imgpress-tabs-nav" role="tablist">
+        <button class="imgpress-tab-button active" data-tab="compression" role="tab" aria-controls="compression" aria-selected="true">
             <span class="dashicons dashicons-image-filter"></span>
             <span><?php esc_html_e('Compression', 'imgpress-wp'); ?></span>
         </button>
-        <button class="imgpress-tab-button" data-tab="r2">
+        <button class="imgpress-tab-button" data-tab="r2" role="tab" aria-controls="r2" aria-selected="false">
             <span class="dashicons dashicons-cloud"></span>
             <span><?php esc_html_e('R2 Storage', 'imgpress-wp'); ?></span>
         </button>
-        <button class="imgpress-tab-button" data-tab="files">
+        <button class="imgpress-tab-button" data-tab="files" role="tab" aria-controls="files" aria-selected="false">
             <span class="dashicons dashicons-media-document"></span>
             <span><?php esc_html_e('File Types', 'imgpress-wp'); ?></span>
         </button>
@@ -35,7 +35,7 @@
         <?php settings_fields('imgpress_wp'); ?>
 
         <!-- Tab 1: Compression Settings -->
-        <div class="imgpress-tab-content active" id="compression">
+        <div class="imgpress-tab-content active" id="compression" role="tabpanel">
             <div class="imgpress-card">
                 <h2 class="imgpress-card-title">
                     <span class="dashicons dashicons-admin-network"></span>
@@ -173,7 +173,7 @@
         </div>
 
         <!-- Tab 2: R2 Storage -->
-        <div class="imgpress-tab-content" id="r2">
+        <div class="imgpress-tab-content" id="r2" role="tabpanel" hidden>
             <div class="imgpress-card">
                 <h2 class="imgpress-card-title">
                     <span class="dashicons dashicons-cloud"></span>
@@ -393,7 +393,7 @@
         </div>
 
         <!-- Tab 3: File Types -->
-        <div class="imgpress-tab-content" id="files">
+        <div class="imgpress-tab-content" id="files" role="tabpanel" hidden>
             <div class="imgpress-card">
                 <h2 class="imgpress-card-title">
                     <span class="dashicons dashicons-media-document"></span>
