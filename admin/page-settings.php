@@ -128,12 +128,8 @@
                                 max="600"
                             />
                             <span class="description" style="display:inline;margin-left:4px">
-                                <?php esc_html_e('seconds', 'imgpress-wp'); ?>
+                                <?php esc_html_e('seconds per request', 'imgpress-wp'); ?>
                             </span>
-                            <strong id="ip-cache-lifespan-human" style="display:inline-block;margin-left:8px"></strong>
-                            <p class="description">
-                                <?php esc_html_e('Example: 3600 seconds = 1 hour, 86400 seconds = 1 day, 604800 seconds = 7 days.', 'imgpress-wp'); ?>
-                            </p>
                         </td>
                     </tr>
                 </table>
@@ -525,6 +521,10 @@
                             <span class="description" style="display:inline;margin-left:4px">
                                 <?php esc_html_e('seconds', 'imgpress-wp'); ?>
                             </span>
+                            <strong id="ip-cache-lifespan-human" style="display:inline-block;margin-left:8px"></strong>
+                            <p class="description">
+                                <?php esc_html_e('Example: 3600 seconds = 1 hour, 86400 seconds = 1 day, 604800 seconds = 7 days.', 'imgpress-wp'); ?>
+                            </p>
                         </td>
                     </tr>
                     <tr>
