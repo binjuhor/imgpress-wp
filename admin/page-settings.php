@@ -48,40 +48,41 @@
     $bloatRssFeed = !empty($opts['bloat_disable_rss_feed']);
     ?>
 
-    <!-- Tab Navigation -->
-    <div class="imgpress-tabs-nav" role="tablist">
-        <button class="imgpress-tab-button active" data-tab="compression" role="tab" aria-controls="compression" aria-selected="true">
-            <span class="dashicons dashicons-image-filter"></span>
-            <span><?php esc_html_e('Compression', 'imgpress-wp'); ?></span>
-        </button>
-        <button class="imgpress-tab-button" data-tab="r2" role="tab" aria-controls="r2" aria-selected="false">
-            <span class="dashicons dashicons-cloud"></span>
-            <span><?php esc_html_e('R2 Storage', 'imgpress-wp'); ?></span>
-        </button>
-        <button class="imgpress-tab-button" data-tab="files" role="tab" aria-controls="files" aria-selected="false">
-            <span class="dashicons dashicons-media-document"></span>
-            <span><?php esc_html_e('File Types', 'imgpress-wp'); ?></span>
-        </button>
-        <button class="imgpress-tab-button" data-tab="cache" role="tab" aria-controls="cache" aria-selected="false">
-            <span class="dashicons dashicons-performance"></span>
-            <span><?php esc_html_e('Cache', 'imgpress-wp'); ?></span>
-        </button>
-        <button class="imgpress-tab-button" data-tab="assets" role="tab" aria-controls="assets" aria-selected="false">
-            <span class="dashicons dashicons-editor-code"></span>
-            <span><?php esc_html_e('CSS / JS', 'imgpress-wp'); ?></span>
-        </button>
-        <button class="imgpress-tab-button" data-tab="database" role="tab" aria-controls="database" aria-selected="false">
-            <span class="dashicons dashicons-database"></span>
-            <span><?php esc_html_e('Database', 'imgpress-wp'); ?></span>
-        </button>
-        <button class="imgpress-tab-button" data-tab="bloat" role="tab" aria-controls="bloat" aria-selected="false">
-            <span class="dashicons dashicons-no-alt"></span>
-            <span><?php esc_html_e('Bloat', 'imgpress-wp'); ?></span>
-        </button>
-    </div>
+    <div class="imgpress-settings-layout">
+        <!-- Tab Navigation -->
+        <div class="imgpress-tabs-nav" role="tablist">
+            <button class="imgpress-tab-button active" data-tab="compression" role="tab" aria-controls="compression" aria-selected="true">
+                <span class="dashicons dashicons-image-filter"></span>
+                <span><?php esc_html_e('Compression', 'imgpress-wp'); ?></span>
+            </button>
+            <button class="imgpress-tab-button" data-tab="r2" role="tab" aria-controls="r2" aria-selected="false">
+                <span class="dashicons dashicons-cloud"></span>
+                <span><?php esc_html_e('R2 Storage', 'imgpress-wp'); ?></span>
+            </button>
+            <button class="imgpress-tab-button" data-tab="files" role="tab" aria-controls="files" aria-selected="false">
+                <span class="dashicons dashicons-media-document"></span>
+                <span><?php esc_html_e('File Types', 'imgpress-wp'); ?></span>
+            </button>
+            <button class="imgpress-tab-button" data-tab="cache" role="tab" aria-controls="cache" aria-selected="false">
+                <span class="dashicons dashicons-performance"></span>
+                <span><?php esc_html_e('Cache', 'imgpress-wp'); ?></span>
+            </button>
+            <button class="imgpress-tab-button" data-tab="assets" role="tab" aria-controls="assets" aria-selected="false">
+                <span class="dashicons dashicons-editor-code"></span>
+                <span><?php esc_html_e('CSS / JS', 'imgpress-wp'); ?></span>
+            </button>
+            <button class="imgpress-tab-button" data-tab="database" role="tab" aria-controls="database" aria-selected="false">
+                <span class="dashicons dashicons-database"></span>
+                <span><?php esc_html_e('Database', 'imgpress-wp'); ?></span>
+            </button>
+            <button class="imgpress-tab-button" data-tab="bloat" role="tab" aria-controls="bloat" aria-selected="false">
+                <span class="dashicons dashicons-no-alt"></span>
+                <span><?php esc_html_e('Bloat', 'imgpress-wp'); ?></span>
+            </button>
+        </div>
 
-    <form method="post" action="options.php" class="imgpress-form">
-        <?php settings_fields('imgpress_wp'); ?>
+        <form method="post" action="options.php" class="imgpress-form">
+            <?php settings_fields('imgpress_wp'); ?>
 
         <!-- Tab 1: Compression Settings -->
         <div class="imgpress-tab-content active" id="compression" role="tabpanel">
@@ -1105,5 +1106,6 @@
                 </a>
             </div>
         </div>
-    </form>
+        </form>
+    </div>
 </div>
