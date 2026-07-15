@@ -112,4 +112,44 @@
         }
     }
 
+	// ── Bulk local-file management ───────────────────────────────────────────
+	if ($('#ip-r2-download-btn').length) {
+		var uploadedIds = [];
+		$.post(ImgPressAdmin.ajaxUrl, {
+			action: 'imgpress_r2_bulk_get_uploaded_ids', _ajax_nonce: ImgPressAdmin.nonce,
+		}, function (res) {
+			if (!res.success) { return; }
+			uploadedIds = res.data.ids;
+			$('#ip-r2-download-btn, #ip-r2-delete-local-btn').prop('disabled', !uploadedIds.length);
+			$('#ip-r2-file-status').text(uploadedIds.length + ' offloaded attachment(s) available.');
+		});
+
+		$('#ip-r2-download-btn').on('click', function () {
+			runFileAction('imgpress_r2_bulk_download', $(this), 'Downloading');
+		});
+		$('#ip-r2-delete-local-btn').on('click', function () {
+			if (!window.confirm('Delete local files for every attachment that has a verified R2 copy?')) { return; }
+			runFileAction('imgpress_r2_bulk_delete_local', $(this), 'Deleting local files');
+		});
+
+		function runFileAction(action, $button, label) {
+			var index = 0, ok = 0, failedCount = 0;
+			$button.prop('disabled', true);
+			function next() {
+				if (index >= uploadedIds.length) {
+					$('#ip-r2-file-status').text('Done — ' + ok + ' succeeded, ' + failedCount + ' failed.');
+					$button.prop('disabled', false);
+					return;
+				}
+				$('#ip-r2-file-status').text(label + ' ' + (index + 1) + ' of ' + uploadedIds.length + '…');
+				$.post(ImgPressAdmin.ajaxUrl, {
+					action: action, _ajax_nonce: ImgPressAdmin.nonce, id: uploadedIds[index],
+				}, function (res) {
+					res.success ? ok++ : failedCount++; index++; next();
+				}).fail(function () { failedCount++; index++; next(); });
+			}
+			next();
+		}
+	}
+
 })(jQuery);

@@ -32,6 +32,7 @@ class R2_Uploader
 	 */
 	public function upload(int $attachmentId): bool
 	{
+		$previousMeta = $this->getStatus($attachmentId);
 		// Guard: R2 must be configured
 		if (!$this->settings->isR2Configured()) {
 			error_log("[ImgPress R2] Skipping upload for attachment {$attachmentId}: R2 not configured");
@@ -107,6 +108,20 @@ class R2_Uploader
 
 		update_post_meta($attachmentId, '_imgpress_r2', $meta);
 
+		// A format conversion changes object names (for example .jpg to .webp).
+		// Only remove obsolete objects after every replacement has uploaded and the
+		// attachment points at the new set, so a failed conversion never loses R2 data.
+		if ($previousMeta) {
+			$oldKeys = $this->keysFromMeta($previousMeta);
+			$newKeys = $this->keysFromMeta($meta);
+			foreach (array_diff($oldKeys, $newKeys) as $staleKey) {
+				$result = $this->client->deleteObject($staleKey);
+				if (!$result['ok']) {
+					error_log("[ImgPress R2] Could not delete obsolete object {$staleKey} (attachment {$attachmentId})");
+				}
+			}
+		}
+
 		// Delete local files if enabled (ONLY after verified upload)
 		if ($this->settings->isR2DeleteLocal()) {
 			foreach ($files as $file) {
@@ -118,6 +133,73 @@ class R2_Uploader
 			}
 		}
 
+		return true;
+	}
+
+	/** Restore the full-size file and generated sizes from R2 to uploads. */
+	public function download(int $attachmentId): bool
+	{
+		$meta = $this->getStatus($attachmentId);
+		$originalPath = get_attached_file($attachmentId);
+		if (!$meta || empty($meta['key']) || !$originalPath || !method_exists($this->client, 'getObject')) {
+			return false;
+		}
+
+		$targets = [['key' => $meta['key'], 'path' => $originalPath]];
+		$attachmentMeta = wp_get_attachment_metadata($attachmentId);
+		foreach (($meta['sizes'] ?? []) as $sizeName => $key) {
+			$file = $attachmentMeta['sizes'][$sizeName]['file'] ?? '';
+			if ($file !== '') {
+				$targets[] = ['key' => $key, 'path' => dirname($originalPath) . '/' . $file];
+			}
+		}
+
+		$temps = [];
+		foreach ($targets as $target) {
+			$result = $this->client->getObject($target['key']);
+			if (!$result['ok'] || !array_key_exists('data', $result)) {
+				$this->cleanupDownloadedFiles(array_column($temps, 'temp'));
+				return false;
+			}
+			if (!wp_mkdir_p(dirname($target['path']))) {
+				$this->cleanupDownloadedFiles(array_column($temps, 'temp'));
+				return false;
+			}
+			$temp = $target['path'] . '.imgpress-download-' . wp_generate_password(8, false);
+			if (file_put_contents($temp, $result['data']) === false) {
+				@unlink($temp);
+				$this->cleanupDownloadedFiles(array_column($temps, 'temp'));
+				return false;
+			}
+			$temps[] = ['temp' => $temp, 'path' => $target['path']];
+		}
+
+		foreach ($temps as $item) {
+			if (!rename($item['temp'], $item['path'])) {
+				$this->cleanupDownloadedFiles(array_column($temps, 'temp'));
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/** Delete local media only when a complete uploaded R2 set is recorded. */
+	public function deleteLocal(int $attachmentId): bool
+	{
+		$meta = $this->getStatus($attachmentId);
+		if (!$meta || ($meta['status'] ?? '') !== 'uploaded') {
+			return false;
+		}
+		$files = $this->collectFiles($attachmentId);
+		if (empty($files)) {
+			return false;
+		}
+		foreach ($files as $file) {
+			if (file_exists($file['path']) && !wp_delete_file($file['path'])) {
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -284,7 +366,7 @@ class R2_Uploader
 	{
 		$baseUrl = method_exists($this->settings, 'getR2PublicBaseUrl')
 			? $this->settings->getR2PublicBaseUrl()
-			: '';
+			: (method_exists($this->settings, 'getR2CustomDomain') ? 'https://' . $this->settings->getR2CustomDomain() : '');
 
 		if (empty($baseUrl)) {
 			return '';
@@ -315,5 +397,22 @@ class R2_Uploader
 		];
 
 		update_post_meta($attachmentId, '_imgpress_r2', $meta);
+	}
+
+	private function keysFromMeta(array $meta): array
+	{
+		return array_values(array_filter(array_merge(
+			[isset($meta['key']) ? (string) $meta['key'] : ''],
+			array_values(is_array($meta['sizes'] ?? null) ? $meta['sizes'] : [])
+		)));
+	}
+
+	private function cleanupDownloadedFiles(array $paths): void
+	{
+		foreach ($paths as $path) {
+			if (file_exists($path)) {
+				wp_delete_file($path);
+			}
+		}
 	}
 }

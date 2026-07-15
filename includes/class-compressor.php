@@ -16,10 +16,17 @@ class Compressor
     {
         $filePath = get_attached_file($attachmentId);
         $mime     = get_post_mime_type($attachmentId);
+		$r2Status = $this->r2Uploader->getStatus($attachmentId);
 
         if (!$filePath || !$mime) {
             return false;
         }
+
+		// Offloaded libraries may intentionally have no local files. Pull the current
+		// object back before recompressing it.
+		if (!file_exists($filePath) && (!$r2Status || !$this->r2Uploader->download($attachmentId))) {
+			return false;
+		}
 
         if (!$this->settings->isTypeEnabled($mime)) {
             return false;
@@ -74,8 +81,10 @@ class Compressor
         }
 
         // Push to R2 if enabled
-        if ($this->settings->isR2PushOnCompress()) {
-            $this->r2Uploader->upload($attachmentId);
+        if ($this->settings->isR2PushOnCompress() || ($r2Status['status'] ?? '') === 'uploaded') {
+            if (!$this->r2Uploader->upload($attachmentId)) {
+				return false;
+			}
         }
 
         return true;

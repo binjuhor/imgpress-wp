@@ -94,6 +94,33 @@ class R2_Client
         return $parsed;
     }
 
+    /** Download an object from R2. */
+    public function getObject(string $key): array
+    {
+        $method = 'GET';
+        $payloadHash = $this->hashPayload('');
+        $headers = [
+            'host' => $this->getHost(),
+            'x-amz-content-sha256' => $payloadHash,
+            'x-amz-date' => $this->getAmzDate(),
+        ];
+        $signedHeaders = $this->signRequest($method, $key, $headers, $payloadHash);
+        $response = wp_remote_request($this->getEndpoint() . $this->getObjectPath($key), [
+            'method' => $method,
+            'headers' => $signedHeaders,
+            'timeout' => $this->settings->getRequestTimeout(),
+            'sslverify' => true,
+            'blocking' => true,
+        ]);
+
+        $parsed = $this->parseResponse($response);
+        if ($parsed['ok']) {
+            $parsed['data'] = wp_remote_retrieve_body($response);
+        }
+
+        return $parsed;
+    }
+
     /**
      * Test R2 bucket connection via SigV4-signed HEAD request.
      *

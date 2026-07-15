@@ -38,6 +38,12 @@
             </button>
             <span id="ip-bulk-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
         </p>
+		<hr style="margin:20px 0">
+		<p class="description"><?php esc_html_e('Re-convert previously optimized images whose format does not match the current Output Format setting. Existing R2 objects are replaced only after the new files upload successfully.', 'imgpress-wp'); ?></p>
+		<p>
+			<button id="ip-reconvert-btn" class="button" disabled><?php esc_html_e('Re-convert optimized images', 'imgpress-wp'); ?></button>
+			<span id="ip-reconvert-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
+		</p>
     </div>
 
     <div id="ip-results-card" style="display:none;margin-top:24px">

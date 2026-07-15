@@ -18,6 +18,9 @@ class R2_Bulk
 		add_action('admin_menu', [$this, 'addMenuPage']);
 		add_action('wp_ajax_imgpress_r2_bulk_get_ids', [$this, 'handleGetIds']);
 		add_action('wp_ajax_imgpress_r2_bulk_push', [$this, 'handlePush']);
+		add_action('wp_ajax_imgpress_r2_bulk_get_uploaded_ids', [$this, 'handleGetUploadedIds']);
+		add_action('wp_ajax_imgpress_r2_bulk_download', [$this, 'handleDownload']);
+		add_action('wp_ajax_imgpress_r2_bulk_delete_local', [$this, 'handleDeleteLocal']);
 		add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
 	}
 
@@ -82,6 +85,49 @@ class R2_Bulk
 		}
 	}
 
+	public function handleGetUploadedIds(): void
+	{
+		$this->guardRequest();
+		$ids = $this->getUploadedIds();
+		wp_send_json_success(['ids' => $ids, 'total' => count($ids)]);
+	}
+
+	public function handleDownload(): void
+	{
+		$this->handleFileAction('download');
+	}
+
+	public function handleDeleteLocal(): void
+	{
+		$this->handleFileAction('deleteLocal');
+	}
+
+	private function handleFileAction(string $method): void
+	{
+		$this->guardRequest();
+		$id = (int) ($_POST['id'] ?? 0);
+		if (!$id) {
+			wp_send_json_error('Invalid ID');
+		}
+		$ok = $this->uploader->{$method}($id);
+		$name = get_the_title($id) ?: basename(get_attached_file($id) ?: '');
+		if ($ok) {
+			wp_send_json_success(['id' => $id, 'name' => $name]);
+		}
+		wp_send_json_error(['id' => $id, 'name' => $name]);
+	}
+
+	private function guardRequest(): void
+	{
+		check_ajax_referer('imgpress_r2_bulk');
+		if (!current_user_can('upload_files')) {
+			wp_send_json_error('Unauthorized', 403);
+		}
+		if (!$this->settings->isR2Configured()) {
+			wp_send_json_error('R2 is not configured');
+		}
+	}
+
 	/**
 	 * Get IDs of attachments pending offload to R2.
 	 * A file is pending if: _imgpress_r2 meta doesn't exist OR status != 'uploaded'.
@@ -101,6 +147,18 @@ class R2_Bulk
 			$status = $this->uploader->getStatus($id);
 
 			return !is_array($status) || ($status['status'] ?? '') !== 'uploaded';
+		}));
+	}
+
+	private function getUploadedIds(): array
+	{
+		$query = new \WP_Query([
+			'post_type' => 'attachment', 'post_status' => 'inherit',
+			'posts_per_page' => -1, 'fields' => 'ids',
+		]);
+		return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
+			$status = $this->uploader->getStatus($id);
+			return is_array($status) && ($status['status'] ?? '') === 'uploaded';
 		}));
 	}
 

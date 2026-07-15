@@ -9,6 +9,8 @@
         var totalSaved = 0;
         var ratios     = [];
         var running    = false;
+		var reconvertIds = [];
+		var activeButton = '#ip-bulk-btn';
 
         $.post(ImgPressAdmin.ajaxUrl, {
             action:      'imgpress_bulk_get_ids',
@@ -24,8 +26,20 @@
             }
         });
 
+		$.post(ImgPressAdmin.ajaxUrl, {
+			action: 'imgpress_bulk_get_reconvert_ids', _ajax_nonce: ImgPressAdmin.nonce,
+		}, function (res) {
+			if (!res.success) { return; }
+			reconvertIds = res.data.ids;
+			$('#ip-reconvert-btn').prop('disabled', reconvertIds.length === 0);
+			$('#ip-reconvert-status').text(reconvertIds.length
+				? reconvertIds.length + ' image(s) can be converted to ' + res.data.format.toUpperCase() + '.'
+				: 'All optimized images already use the selected format.');
+		});
+
         $('#ip-bulk-btn').on('click', function () {
             if (running) { return; }
+			activeButton = '#ip-bulk-btn';
             running    = true;
             done       = 0;
             totalSaved = 0;
@@ -38,6 +52,17 @@
 
             processNext();
         });
+
+		$('#ip-reconvert-btn').on('click', function () {
+			if (running || !reconvertIds.length) { return; }
+			ids = reconvertIds.slice();
+			activeButton = '#ip-reconvert-btn';
+			running = true; done = 0; totalSaved = 0; ratios = [];
+			$(this).prop('disabled', true).text('Re-converting…');
+			$('#ip-progress-wrap, #ip-results-card').show();
+			$('#ip-results-tbody').empty();
+			processNext();
+		});
 
         function processNext() {
             if (done >= ids.length) {
@@ -100,7 +125,7 @@
             running = false;
             $('#ip-progress-bar').css('width', '100%');
             $('#ip-progress-label').text('Done — ' + done + ' files processed.');
-            $('#ip-bulk-btn').prop('disabled', false).text('Run Again');
+			$(activeButton).prop('disabled', false).text(activeButton === '#ip-reconvert-btn' ? 'Re-convert Again' : 'Run Again');
             $('#ip-bulk-status').text('');
         }
     }

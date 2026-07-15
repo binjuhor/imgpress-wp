@@ -3,7 +3,7 @@
  * Plugin Name: ImgPress
  * Plugin URI:  https://github.com/binjuhor/imgpress-wp
  * Description: Optimize media, offload files to R2, and speed up WordPress with opt-in caching tools.
- * Version:     1.1.6
+ * Version:     1.2.0
  * Author:      Binjuhor
  * Author URI: https://binjuhor.com
  * License:     MIT

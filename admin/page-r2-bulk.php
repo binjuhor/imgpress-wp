@@ -53,6 +53,16 @@
 		</p>
 	</div>
 
+	<div class="card" style="max-width:800px;margin-top:16px;padding:20px 24px">
+		<h2><?php esc_html_e('Local media files', 'imgpress-wp'); ?></h2>
+		<p class="description"><?php esc_html_e('Restore R2 media to this server, or remove local copies after a verified offload.', 'imgpress-wp'); ?></p>
+		<p>
+			<button id="ip-r2-download-btn" class="button" disabled><?php esc_html_e('Download all from R2 to local', 'imgpress-wp'); ?></button>
+			<button id="ip-r2-delete-local-btn" class="button button-link-delete" disabled><?php esc_html_e('Delete all local media files', 'imgpress-wp'); ?></button>
+		</p>
+		<p id="ip-r2-file-status" class="description"></p>
+	</div>
+
 	<div id="ip-r2-results-card" style="display:none;margin-top:24px">
 		<h2><?php esc_html_e('Results', 'imgpress-wp'); ?></h2>
 		<table class="wp-list-table widefat fixed striped">

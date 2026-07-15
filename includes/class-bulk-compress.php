@@ -12,6 +12,7 @@ class Bulk_Compress
     ) {
         add_action('admin_menu',                        [$this, 'addMenuPage']);
         add_action('wp_ajax_imgpress_bulk_get_ids',     [$this, 'handleGetIds']);
+		add_action('wp_ajax_imgpress_bulk_get_reconvert_ids', [$this, 'handleGetReconvertIds']);
         add_action('wp_ajax_imgpress_bulk_compress',    [$this, 'handleCompress']);
         add_action('admin_enqueue_scripts',             [$this, 'enqueueAssets']);
     }
@@ -68,6 +69,16 @@ class Bulk_Compress
         }
     }
 
+	public function handleGetReconvertIds(): void
+	{
+		check_ajax_referer('imgpress_bulk');
+		if (!current_user_can('upload_files')) {
+			wp_send_json_error('Unauthorized', 403);
+		}
+		$ids = $this->getReconvertIds();
+		wp_send_json_success(['ids' => $ids, 'total' => count($ids), 'format' => $this->settings->getFormat()]);
+	}
+
     private function getUncompressedIds(): array
     {
         $query = new \WP_Query([
@@ -91,6 +102,25 @@ class Bulk_Compress
             return $this->settings->isTypeEnabled($mime);
         }));
     }
+
+	private function getReconvertIds(): array
+	{
+		$format = $this->settings->getFormat();
+		$targetMime = ['webp' => 'image/webp', 'avif' => 'image/avif', 'jpeg' => 'image/jpeg'][$format] ?? '';
+		if ($targetMime === '') {
+			return [];
+		}
+		$query = new \WP_Query([
+			'post_type' => 'attachment', 'post_status' => 'inherit',
+			'posts_per_page' => -1, 'fields' => 'ids',
+			'meta_query' => [['key' => '_imgpress_compressed_at', 'compare' => 'EXISTS']],
+		]);
+		return array_values(array_filter(array_map('intval', $query->posts), static function (int $id) use ($targetMime): bool {
+			$mime = strtolower((string) get_post_mime_type($id));
+			return str_starts_with($mime, 'image/') && $mime !== $targetMime
+				&& !($targetMime === 'image/jpeg' && $mime === 'image/jpg');
+		}));
+	}
 
     private function isFontMime(string $mime): bool
     {
