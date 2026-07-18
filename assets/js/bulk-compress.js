@@ -80,6 +80,7 @@
                 action:      'imgpress_bulk_compress',
                 _ajax_nonce: ImgPressAdmin.nonce,
                 id:          id,
+                reconvert:   activeButton === '#ip-reconvert-btn' ? 1 : 0,
             }, function (res) {
                 done++;
                 $('#ip-done-count').text(done);

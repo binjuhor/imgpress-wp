@@ -14,6 +14,40 @@ class Compressor
 
     public function compress(int $attachmentId): bool
     {
+        return $this->compressAttachment($attachmentId, false);
+    }
+
+    /**
+     * Explicit reconversion always synchronizes the resulting files to R2 when
+     * R2 is configured. If the local attachment already uses the target format,
+     * skip another lossy conversion and repair only the R2 object set.
+     */
+    public function reconvert(int $attachmentId): bool
+    {
+        $targetMime = $this->targetMime();
+        $currentMime = strtolower((string) get_post_mime_type($attachmentId));
+
+        if ($targetMime !== '' && $currentMime === $targetMime) {
+            $filePath = get_attached_file($attachmentId);
+            $r2Status = $this->r2Uploader->getStatus($attachmentId);
+
+            if (!$filePath) {
+                return false;
+            }
+            if (!file_exists($filePath) && (!$r2Status || !$this->r2Uploader->download($attachmentId))) {
+                return false;
+            }
+
+            return $this->settings->isR2Configured()
+                ? $this->r2Uploader->upload($attachmentId)
+                : true;
+        }
+
+        return $this->compressAttachment($attachmentId, true);
+    }
+
+    private function compressAttachment(int $attachmentId, bool $forceR2Upload): bool
+    {
         $filePath = get_attached_file($attachmentId);
         $mime     = get_post_mime_type($attachmentId);
 		$r2Status = $this->r2Uploader->getStatus($attachmentId);
@@ -81,13 +115,25 @@ class Compressor
         }
 
         // Push to R2 if enabled
-        if ($this->settings->isR2PushOnCompress() || ($r2Status['status'] ?? '') === 'uploaded') {
+        if (($forceR2Upload && $this->settings->isR2Configured())
+            || $this->settings->isR2PushOnCompress()
+            || ($r2Status['status'] ?? '') === 'uploaded') {
             if (!$this->r2Uploader->upload($attachmentId)) {
 				return false;
 			}
         }
 
         return true;
+    }
+
+    private function targetMime(): string
+    {
+        return match ($this->settings->getFormat()) {
+            'webp' => 'image/webp',
+            'avif' => 'image/avif',
+            'jpeg' => 'image/jpeg',
+            default => '',
+        };
     }
 
     public function restore(int $attachmentId): bool

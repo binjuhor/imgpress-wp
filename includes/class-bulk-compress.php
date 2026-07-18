@@ -54,7 +54,10 @@ class Bulk_Compress
             wp_send_json_error('Invalid ID');
         }
 
-        $ok    = $this->compressor->compress($attachmentId);
+        $isReconvert = !empty($_POST['reconvert']);
+        $ok    = $isReconvert
+            ? $this->compressor->reconvert($attachmentId)
+            : $this->compressor->compress($attachmentId);
         $stats = $ok ? $this->compressor->getStats($attachmentId) : null;
         $name  = get_the_title($attachmentId) ?: basename(get_attached_file($attachmentId) ?: '');
 
@@ -117,8 +120,19 @@ class Bulk_Compress
 		]);
 		return array_values(array_filter(array_map('intval', $query->posts), static function (int $id) use ($targetMime): bool {
 			$mime = strtolower((string) get_post_mime_type($id));
-			return str_starts_with($mime, 'image/') && $mime !== $targetMime
-				&& !($targetMime === 'image/jpeg' && $mime === 'image/jpg');
+			if (!str_starts_with($mime, 'image/')) {
+				return false;
+			}
+
+			$localMatches = $mime === $targetMime
+				|| ($targetMime === 'image/jpeg' && $mime === 'image/jpg');
+			$r2 = get_post_meta($id, '_imgpress_r2', true);
+			$r2Key = is_array($r2) ? strtolower((string) ($r2['key'] ?? '')) : '';
+			$targetExtension = $targetMime === 'image/jpeg' ? 'jpg' : substr($targetMime, strlen('image/'));
+			$r2Matches = $r2Key === '' || str_ends_with($r2Key, '.' . $targetExtension)
+				|| ($targetMime === 'image/jpeg' && str_ends_with($r2Key, '.jpeg'));
+
+			return !$localMatches || !$r2Matches;
 		}));
 	}
 
