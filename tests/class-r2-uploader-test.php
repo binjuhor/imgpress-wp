@@ -9,6 +9,7 @@ $GLOBALS['mockAttachments'] = [];
 $GLOBALS['mockMeta'] = [];
 $GLOBALS['mockDeletedFiles'] = [];
 $GLOBALS['mockFileContents'] = [];
+$GLOBALS['mockR2Events'] = [];
 
 function get_attached_file($attachmentId) {
     global $mockAttachments;
@@ -67,8 +68,9 @@ function file_get_contents_mock($path) {
 }
 
 function wp_delete_file($path) {
-    global $mockDeletedFiles;
+    global $mockDeletedFiles, $mockR2Events;
     $mockDeletedFiles[] = $path;
+    $mockR2Events[] = ['delete_local', $path];
     return true;
 }
 
@@ -99,6 +101,9 @@ class MockR2Client {
     }
 
     public function putObject(string $key, string $data, string $contentType = 'application/octet-stream'): array {
+        global $mockR2Events;
+        $mockR2Events[] = ['upload', $key];
+
         if ($this->shouldFail && ($this->failOnKey === null || $this->failOnKey === $key)) {
             return [
                 'ok' => false,
@@ -184,6 +189,7 @@ function testCase($name, $fn) {
     $GLOBALS['mockMeta'] = [];
     $GLOBALS['mockDeletedFiles'] = [];
     $GLOBALS['mockFileContents'] = [];
+    $GLOBALS['mockR2Events'] = [];
 
     try {
         $fn();
@@ -392,7 +398,7 @@ testCase('getStatus returns null when not uploaded', function () {
 
 // Test 7: Delete local files only after verified upload
 testCase('Delete local files only after verified upload', function () {
-    global $mockAttachments, $mockDeletedFiles;
+    global $mockAttachments, $mockDeletedFiles, $mockR2Events;
 
     $mockAttachments[7] = [
         'file' => '/var/www/html/wp-content/uploads/2026/07/photo.jpg',
@@ -413,8 +419,12 @@ testCase('Delete local files only after verified upload', function () {
     $result = $uploader->upload(7);
 
     assert_true($result, 'Upload should succeed');
-    // Note: wp_delete_file is mocked, so we can't verify actual deletion
-    // But we can verify upload succeeded before deletion was attempted
+    assert_count(2, $mockDeletedFiles, 'Original and thumbnail should be deleted');
+    assert_equals(
+        array_column($mockR2Events, 0),
+        ['upload', 'upload', 'delete_local', 'delete_local'],
+        'Every R2 upload must finish before any local file is deleted'
+    );
 });
 
 // Test 8: Don't delete local files when setting is off
@@ -534,7 +544,7 @@ testCase('Public URL constructed correctly', function () {
 
 // Test 13: Partial failure scenario
 testCase('Partial failure: abort if one sub-size fails', function () {
-    global $mockAttachments, $mockMeta;
+    global $mockAttachments, $mockMeta, $mockDeletedFiles;
 
     $mockAttachments[13] = [
         'file' => '/var/www/html/wp-content/uploads/2026/13/photo.jpg',
@@ -551,12 +561,14 @@ testCase('Partial failure: abort if one sub-size fails', function () {
     $mockClient = new MockR2Client();
     $mockClient->setFailure(true, '2026/13/photo-300x300.jpg'); // Fail on medium size
     $mockSettings = new MockSettings();
+    $mockSettings->setDeleteLocal(true);
     $uploader = createMockUploader($mockClient, $mockSettings);
 
     $result = $uploader->upload(13);
 
     assert_false($result, 'Upload should fail on partial failure');
     assert_equals($mockMeta[13]['_imgpress_r2']['status'], 'failed', 'Status should be failed');
+    assert_count(0, $mockDeletedFiles, 'A partial R2 failure must keep every local file');
 });
 
 echo "\n=== Test Summary ===\n";

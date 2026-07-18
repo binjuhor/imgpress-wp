@@ -99,14 +99,11 @@ class Auto_Compress
             return $metadata;
         }
 
-        $updatedFile = get_attached_file($attachmentId);
-        $updated = $updatedFile ? wp_generate_attachment_metadata($attachmentId, $updatedFile) : null;
-
-        if (is_array($updated)) {
-            add_action('shutdown', static function () use ($attachmentId, $updated): void {
-                wp_update_attachment_metadata($attachmentId, $updated);
-            }, PHP_INT_MAX);
-        }
+        // Compressor::compress() has already regenerated and persisted metadata
+        // for the converted file before it uploads anything to R2. Do not read the
+        // image from disk again here: a successful R2 upload may intentionally have
+        // deleted the local original and generated sizes.
+        $updated = wp_get_attachment_metadata($attachmentId);
 
         return is_array($updated) ? $updated : $metadata;
     }
