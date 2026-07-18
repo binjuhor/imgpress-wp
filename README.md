@@ -33,7 +33,7 @@ All settings live under **Settings → ImgPress**.
 
 | Setting | Default | Description |
 |---|---|---|
-| API URL | `http://imgpress.binjuhor.com` | Base URL of your ImgPress API (no trailing slash) |
+| API URL | `https://imgpress.org` | Base URL of your ImgPress API (no trailing slash) |
 | Request timeout | `120s` | Max seconds to wait for the API per file |
 | Auto-compress | Enabled | Compress files automatically on upload |
 | Quality | `80` | Compression quality (1–100) |

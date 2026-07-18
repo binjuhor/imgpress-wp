@@ -12,7 +12,7 @@ class Config
     {
         return [
             'config_version' => IMGPRESS_WP_VERSION,
-            'api_url' => 'http://imgpress.binjuhor.com',
+            'api_url' => 'https://imgpress.org',
             'auto_compress' => true,
             'quality' => 80,
             'format' => 'webp',
