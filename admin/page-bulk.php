@@ -44,6 +44,7 @@
 			<button id="ip-reconvert-btn" class="button" disabled><?php esc_html_e('Repair / re-convert images', 'imgpress-wp'); ?></button>
 			<span id="ip-reconvert-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
 		</p>
+		<p class="description"><?php esc_html_e('Bricks Builder users: if Bricks uses external CSS files, regenerate Bricks CSS after this finishes so cached background-image rules use the repaired URLs.', 'imgpress-wp'); ?></p>
     </div>
 
     <div id="ip-results-card" style="display:none;margin-top:24px">

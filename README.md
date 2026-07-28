@@ -8,7 +8,7 @@ A WordPress plugin that compresses images, PDFs, audio, and video files through 
 - **Manual & bulk compression** — compress existing media one at a time from the media library, or process your entire library in bulk
 - **Multi-format support** — images (JPEG, PNG, WebP, HEIC, AVIF, GIF), PDFs, audio (MP3/WAV/FLAC → M4A), and video (MP4/MOV/AVI → MP4)
 - **Configurable output** — control quality, output format (WebP, AVIF, JPEG, or auto), and max image width
-- **Content URL migration** — when conversion changes a file extension, embedded full-size and generated-size URLs are updated; restoring the original reverses them
+- **Content URL migration** — when conversion changes a file extension, embedded full-size and generated-size URLs are updated in WordPress content and Bricks Builder header/content/footer data; restoring the original reverses them
 - **Media library integration** — an "⚡ ImgPress" column shows compression stats (reduction %, before/after size, date) for every attachment
 - **Bulk compress dashboard** — progress bar, per-file results table, and aggregate stats (total saved, average reduction)
 - **Cloudflare R2 storage** — offload media to R2 with one-click bulk uploads, optional automatic push on compress, public-hostname support via `r2.dev` or a custom domain, and optional local file deletion

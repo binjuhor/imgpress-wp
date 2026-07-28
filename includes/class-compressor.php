@@ -346,7 +346,7 @@ class Compressor
             }
         }
 
-        $this->replaceUrlsInPostContent($replacements);
+        $this->replaceUrlsInStoredContent($replacements);
     }
 
     /** Repair content converted by older ImgPress versions that did not migrate URLs. */
@@ -387,7 +387,7 @@ class Compressor
             }
         }
 
-        $this->replaceUrlsInPostContent($replacements);
+        $this->replaceUrlsInStoredContent($replacements);
     }
 
     private function localUploadUrl(string $path): ?string
@@ -402,7 +402,7 @@ class Compressor
     }
 
     /** @param array<string, string> $replacements */
-    private function replaceUrlsInPostContent(array $replacements): void
+    private function replaceUrlsInStoredContent(array $replacements): void
     {
         if (!$replacements) {
             return;
@@ -443,6 +443,57 @@ class Compressor
                 wp_update_post(['ID' => $postId, 'post_content' => $content]);
             }
         }
+
+        $this->replaceUrlsInBricksData($replacements);
+    }
+
+    /** Replace URLs in Bricks' serialized header, content, and footer element data. */
+    private function replaceUrlsInBricksData(array $replacements): void
+    {
+        global $wpdb;
+        $metaKeys = [
+            '_bricks_page_header_2',
+            '_bricks_page_content_2',
+            '_bricks_page_footer_2',
+            '_bricks_page_settings',
+        ];
+        $metaIds = [];
+        $keyPlaceholders = implode(', ', array_fill(0, count($metaKeys), '%s'));
+        foreach (array_keys($replacements) as $oldUrl) {
+            $query = "SELECT meta_id FROM {$wpdb->postmeta}"
+                . " WHERE meta_key IN ({$keyPlaceholders}) AND meta_value LIKE %s";
+            $params = array_merge($metaKeys, ['%' . $wpdb->esc_like($oldUrl) . '%']);
+            foreach ($wpdb->get_col($wpdb->prepare($query, ...$params)) as $metaId) {
+                $metaIds[(int) $metaId] = true;
+            }
+        }
+
+        foreach (array_keys($metaIds) as $metaId) {
+            $meta = get_metadata_by_mid('post', $metaId);
+            if (!$meta) {
+                continue;
+            }
+            $updated = $this->replaceUrlsRecursively($meta->meta_value, $replacements);
+            if ($updated !== $meta->meta_value) {
+                update_metadata_by_mid('post', $metaId, $updated);
+                clean_post_cache((int) $meta->post_id);
+            }
+        }
+    }
+
+    private function replaceUrlsRecursively($value, array $replacements)
+    {
+        if (is_string($value)) {
+            return str_replace(array_keys($replacements), array_values($replacements), $value);
+        }
+        if (!is_array($value)) {
+            return $value;
+        }
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->replaceUrlsRecursively($item, $replacements);
+        }
+
+        return $value;
     }
 
     private function backupOriginal(int $attachmentId, string $filePath, string $mime): bool
