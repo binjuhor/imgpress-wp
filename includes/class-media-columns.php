@@ -6,6 +6,10 @@ defined('ABSPATH') || exit;
 
 class Media_Columns
 {
+    private const BULK_COMPRESS = 'imgpress_compress';
+    private const BULK_OFFLOAD = 'imgpress_r2_offload';
+    private const BULK_RESTORE = 'imgpress_restore_original';
+
     public function __construct(
         private Compressor   $compressor,
         private Settings     $settings,
@@ -17,8 +21,12 @@ class Media_Columns
         add_action('wp_ajax_imgpress_restore_original', [$this, 'handleRestoreOriginal']);
         add_action('wp_ajax_imgpress_r2_push',   [$this, 'handleR2Push']);
         add_action('wp_ajax_imgpress_r2_remove', [$this, 'handleR2Remove']);
+        add_action('wp_ajax_imgpress_media_bulk_item', [$this, 'handleBulkItem']);
         add_action('admin_enqueue_scripts',       [$this, 'enqueueAssets']);
         add_action('delete_attachment',           [$this, 'handleDeleteAttachment']);
+        add_filter('bulk_actions-upload',          [$this, 'addBulkActions']);
+        add_filter('handle_bulk_actions-upload',   [$this, 'handleBulkActionFallback'], 10, 3);
+        add_action('admin_notices',                [$this, 'renderBulkActionNotice']);
     }
 
     public function addColumn(array $columns): array
@@ -46,14 +54,14 @@ class Media_Columns
             echo "<span class=\"ip-sizes\">{$origKb} → {$compKb} KB</span>";
             echo "<span class=\"ip-date\">{$date}</span>";
             if ($this->compressor->canRestore($postId)) {
-                echo "<button class=\"button ip-restore-btn\" data-id=\"{$postId}\">Restore original</button>";
-                echo "<span class=\"ip-restore-result\"></span>";
+                echo $this->compactButton('ip-restore-btn', __('Restore original', 'imgpress-wp'), $postId);
+                echo '<span class="ip-restore-result" role="status" aria-live="polite"></span>';
             }
         } else {
             $mime = get_post_mime_type($postId);
             if ($mime && $this->settings->isTypeEnabled($mime)) {
-                echo "<button class=\"button ip-compress-btn\" data-id=\"{$postId}\">Compress</button>";
-                echo "<span class=\"ip-compress-result\"></span>";
+                echo $this->compactButton('ip-compress-btn', __('Compress', 'imgpress-wp'), $postId);
+                echo '<span class="ip-compress-result" role="status" aria-live="polite"></span>';
             } else {
                 echo '<span class="ip-na">—</span>';
             }
@@ -63,6 +71,140 @@ class Media_Columns
         if ($this->uploader && $this->settings->isR2Configured()) {
             $this->renderR2SubBlock($postId);
         }
+    }
+
+    public function addBulkActions(array $actions): array
+    {
+        $actions[self::BULK_COMPRESS] = __('Convert/Compress', 'imgpress-wp');
+        $actions[self::BULK_RESTORE] = __('Restore Originals', 'imgpress-wp');
+
+        if ($this->uploader && $this->settings->isR2Configured()) {
+            $actions[self::BULK_OFFLOAD] = __('Offload to R2', 'imgpress-wp');
+        }
+
+        return $actions;
+    }
+
+    public function handleBulkItem(): void
+    {
+        check_ajax_referer('imgpress_media_bulk');
+
+        $attachmentId = (int) ($_POST['id'] ?? 0);
+        $operation = isset($_POST['operation']) && is_string($_POST['operation'])
+            ? sanitize_key(wp_unslash($_POST['operation']))
+            : '';
+        if (!$this->canManageAttachment($attachmentId)) {
+            wp_send_json_error(['result' => 'failed'], 403);
+        }
+
+        if (!in_array($operation, [self::BULK_COMPRESS, self::BULK_OFFLOAD, self::BULK_RESTORE], true)) {
+            wp_send_json_error(['result' => 'failed'], 400);
+        }
+
+        wp_send_json_success(['result' => $this->runBulkAction($operation, $attachmentId)]);
+    }
+
+    /** Safe fallback when the sequential JavaScript controller is unavailable. */
+    public function handleBulkActionFallback(string $redirectTo, string $action, array $postIds): string
+    {
+        if (!in_array($action, [self::BULK_COMPRESS, self::BULK_OFFLOAD, self::BULK_RESTORE], true)) {
+            return $redirectTo;
+        }
+
+        return add_query_arg([
+            'imgpress_bulk_action' => $action,
+            'imgpress_succeeded' => 0,
+            'imgpress_skipped' => 0,
+            'imgpress_failed' => count(array_unique(array_map('intval', $postIds))),
+            'imgpress_js_required' => 1,
+        ], $redirectTo);
+    }
+
+    public function renderBulkActionNotice(): void
+    {
+        $screen = get_current_screen();
+        if (!isset($_GET['imgpress_bulk_action']) || !$screen || $screen->id !== 'upload') {
+            return;
+        }
+
+        $action = is_string($_GET['imgpress_bulk_action'])
+            ? sanitize_key(wp_unslash($_GET['imgpress_bulk_action']))
+            : '';
+        $labels = [
+            self::BULK_COMPRESS => __('Convert/Compress', 'imgpress-wp'),
+            self::BULK_OFFLOAD => __('Offload to R2', 'imgpress-wp'),
+            self::BULK_RESTORE => __('Restore Originals', 'imgpress-wp'),
+        ];
+
+        if (!isset($labels[$action])) {
+            return;
+        }
+
+        $succeeded = isset($_GET['imgpress_succeeded']) ? absint($_GET['imgpress_succeeded']) : 0;
+        $skipped = isset($_GET['imgpress_skipped']) ? absint($_GET['imgpress_skipped']) : 0;
+        $failed = isset($_GET['imgpress_failed']) ? absint($_GET['imgpress_failed']) : 0;
+        $noticeClass = $failed > 0 ? 'notice-warning' : 'notice-success';
+
+        if (!empty($_GET['imgpress_js_required'])) {
+            printf(
+                '<div class="notice notice-error is-dismissible"><p><strong>ImgPress: %1$s</strong> — %2$s</p></div>',
+                esc_html($labels[$action]),
+                esc_html__('The bulk controller did not start. Enable JavaScript, reload the Media Library, and try again.', 'imgpress-wp')
+            );
+            return;
+        }
+
+        printf(
+            '<div class="notice %1$s is-dismissible"><p><strong>ImgPress: %2$s</strong> — %3$d succeeded, %4$d skipped, %5$d failed.</p></div>',
+            esc_attr($noticeClass),
+            esc_html($labels[$action]),
+            $succeeded,
+            $skipped,
+            $failed
+        );
+    }
+
+    private function runBulkAction(string $action, int $attachmentId): string
+    {
+        if ($attachmentId <= 0 || get_post_type($attachmentId) !== 'attachment') {
+            return 'skipped';
+        }
+
+        if ($action === self::BULK_COMPRESS) {
+            $mime = (string) get_post_mime_type($attachmentId);
+            if ($mime === '' || !$this->settings->isTypeEnabled($mime)) {
+                return 'skipped';
+            }
+
+            return $this->compressor->compress($attachmentId) ? 'succeeded' : 'failed';
+        }
+
+        if ($action === self::BULK_RESTORE) {
+            if (!$this->compressor->canRestore($attachmentId)) {
+                return 'skipped';
+            }
+
+            return $this->compressor->restore($attachmentId) ? 'succeeded' : 'failed';
+        }
+
+        if (!$this->uploader || !$this->settings->isR2Configured()) {
+            return 'failed';
+        }
+
+        $status = $this->uploader->getStatus($attachmentId);
+        if (is_array($status) && ($status['status'] ?? '') === 'uploaded') {
+            return 'skipped';
+        }
+
+        return $this->uploader->upload($attachmentId) ? 'succeeded' : 'failed';
+    }
+
+    private function canManageAttachment(int $attachmentId): bool
+    {
+        return $attachmentId > 0
+            && get_post_type($attachmentId) === 'attachment'
+            && current_user_can('upload_files')
+            && current_user_can('edit_post', $attachmentId);
     }
 
     public function handleAjaxSingle(): void
@@ -76,6 +218,9 @@ class Media_Columns
         $attachmentId = (int) ($_POST['id'] ?? 0);
         if (!$attachmentId) {
             wp_send_json_error('Invalid ID');
+        }
+        if (!$this->canManageAttachment($attachmentId)) {
+            wp_send_json_error('Unauthorized', 403);
         }
 
         $ok = $this->compressor->compress($attachmentId);
@@ -99,6 +244,9 @@ class Media_Columns
         $attachmentId = (int) ($_POST['id'] ?? 0);
         if (!$attachmentId) {
             wp_send_json_error('Invalid ID');
+        }
+        if (!$this->canManageAttachment($attachmentId)) {
+            wp_send_json_error('Unauthorized', 403);
         }
 
         $ok = $this->compressor->restore($attachmentId);
@@ -131,6 +279,9 @@ class Media_Columns
         if (!$attachmentId) {
             wp_send_json_error('Invalid ID');
         }
+        if (!$this->canManageAttachment($attachmentId)) {
+            wp_send_json_error('Unauthorized', 403);
+        }
 
         if (!$this->uploader) {
             wp_send_json_error('R2 uploader not available');
@@ -157,6 +308,9 @@ class Media_Columns
         $attachmentId = (int) ($_POST['id'] ?? 0);
         if (!$attachmentId) {
             wp_send_json_error('Invalid ID');
+        }
+        if (!$this->canManageAttachment($attachmentId)) {
+            wp_send_json_error('Unauthorized', 403);
         }
 
         if (!$this->uploader) {
@@ -190,20 +344,28 @@ class Media_Columns
                 echo '<span class="ip-r2-link">No public URL</span>';
             }
 
-            echo '<button class="button ip-r2-btn ip-r2-remove-btn" data-id="' . esc_attr($postId) . '">Remove</button>';
-            echo '<span class="ip-r2-result"></span>';
+            echo $this->compactButton('ip-r2-btn ip-r2-remove-btn', __('Remove R2', 'imgpress-wp'), $postId);
+            echo '<span class="ip-r2-result" role="status" aria-live="polite"></span>';
         } elseif ($status && $status['status'] === 'failed') {
-            // R2 failed badge + Retry button
             echo '<span class="ip-err">R2 failed</span>';
-            echo '<button class="button ip-r2-btn ip-r2-push-btn" data-id="' . esc_attr($postId) . '">Retry</button>';
-            echo '<span class="ip-r2-result"></span>';
+            echo $this->compactButton('ip-r2-btn ip-r2-push-btn', __('Retry R2', 'imgpress-wp'), $postId);
+            echo '<span class="ip-r2-result" role="status" aria-live="polite"></span>';
         } else {
-            // Push to R2 button
-            echo '<button class="button ip-r2-btn ip-r2-push-btn" data-id="' . esc_attr($postId) . '">Push to R2</button>';
-            echo '<span class="ip-r2-result"></span>';
+            echo $this->compactButton('ip-r2-btn ip-r2-push-btn', __('Offload R2', 'imgpress-wp'), $postId);
+            echo '<span class="ip-r2-result" role="status" aria-live="polite"></span>';
         }
 
         echo '</div>';
+    }
+
+    private function compactButton(string $classes, string $label, int $postId): string
+    {
+        return sprintf(
+            '<button type="button" class="button ip-compact-btn %1$s" data-id="%2$d" aria-label="%3$s" title="%3$s">%3$s</button>',
+            esc_attr($classes),
+            $postId,
+            esc_html($label)
+        );
     }
 
     public function enqueueAssets(string $hook): void
@@ -243,6 +405,7 @@ class Media_Columns
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('imgpress_compress_single'),
             'r2Nonce' => wp_create_nonce('imgpress_r2'),
+            'bulkNonce' => wp_create_nonce('imgpress_media_bulk'),
         ]);
 
         wp_enqueue_script(
@@ -257,6 +420,7 @@ class Media_Columns
             'ajaxUrl'  => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('imgpress_compress_single'),
             'r2Nonce'  => wp_create_nonce('imgpress_r2'),
+            'bulkNonce' => wp_create_nonce('imgpress_media_bulk'),
         ]);
     }
 }

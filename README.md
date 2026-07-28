@@ -68,9 +68,15 @@ The Cloudflare S3 API endpoint (`https://{account-id}.r2.cloudflarestorage.com`)
 
 With auto-compress enabled, every uploaded file is sent to the API before WordPress creates the attachment. No action required.
 
-### Single file compression
+### Media library actions
 
-In the media library list view, find the **⚡ ImgPress** column. Files that haven't been compressed show a **Compress** button — click it to compress that file in place.
+In the media library list view, select one or more attachments, choose an ImgPress action from the **Bulk actions** menu, then click **Apply**:
+
+- **Convert/Compress** optimizes the selected supported files
+- **Restore Originals** restores selected attachments that have an original backup
+- **Offload to R2** uploads selected attachments when R2 is configured
+
+The **⚡ ImgPress** column shows optimization and R2 status. Compact text buttons remain available for individual actions. Use the bulk actions for processing multiple attachments.
 
 ### Bulk compression
 
@@ -89,7 +95,7 @@ To use Cloudflare R2 storage:
    - (Optional) Add a public hostname (`r2.dev` for testing or a custom domain for production)
    - Test the connection with the **Test R2 Connection** button
 4. **Push files to R2** manually:
-   - In the media library, use the **Push to R2** button on individual files
+   - In the media library list, select files and use **Bulk actions → Offload to R2**
    - Or go to **Media → Bulk Offload to R2** to upload your entire library at once
 5. **(Optional) Enable automatic sync**:
    - Check "Auto-push compressed files to R2" to upload automatically after compression
