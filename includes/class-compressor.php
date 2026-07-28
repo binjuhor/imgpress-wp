@@ -72,7 +72,9 @@ class Compressor
             return false;
         }
 
-        if ($result['mime'] === $mime && $result['compressedSize'] > $result['originalSize']) {
+        // A format conversion is not an optimization when it increases the file.
+        // Keep the current attachment untouched regardless of the output MIME type.
+        if ($result['compressedSize'] >= $result['originalSize']) {
             return false;
         }
 

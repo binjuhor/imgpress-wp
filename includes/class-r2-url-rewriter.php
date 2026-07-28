@@ -14,14 +14,11 @@ defined('ABSPATH') || exit;
 class R2_URL_Rewriter
 {
     private string $uploadBaseUrl;
-    private string $customDomainUrl;
 
     public function __construct(private Settings $settings)
     {
         $uploads = wp_upload_dir();
         $this->uploadBaseUrl = $uploads['baseurl'] ?? '';
-
-        $this->customDomainUrl = $this->settings->getR2PublicBaseUrl();
 
         $this->registerHooks();
     }
@@ -55,7 +52,15 @@ class R2_URL_Rewriter
             return $url;
         }
 
-        return $meta['url'] ?? $url;
+        $publicBaseUrl = $this->settings->getR2PublicBaseUrl();
+        if (!empty($meta['key'])) {
+            return !empty($publicBaseUrl)
+                ? $this->publicUrlForKey((string) $meta['key'], $publicBaseUrl)
+                : $url;
+        }
+
+        // Older records may have been saved before object keys were tracked.
+        return !empty($meta['url']) ? (string) $meta['url'] : $url;
     }
 
     /**
@@ -98,11 +103,12 @@ class R2_URL_Rewriter
      */
     public function filterTheContent(string $content): string
     {
-        if (empty($this->uploadBaseUrl) || empty($this->customDomainUrl) || !$this->settings->isR2Enabled()) {
+        $publicBaseUrl = $this->settings->getR2PublicBaseUrl();
+        if (empty($this->uploadBaseUrl) || empty($publicBaseUrl) || !$this->settings->isR2Enabled()) {
             return $content;
         }
 
-        return str_replace($this->uploadBaseUrl, $this->customDomainUrl, $content);
+        return str_replace($this->uploadBaseUrl, $publicBaseUrl, $content);
     }
 
     /**
@@ -151,15 +157,24 @@ class R2_URL_Rewriter
      */
     private function swapHostToCustomDomain(string $url): string
     {
-        if (empty($this->uploadBaseUrl) || empty($this->customDomainUrl)) {
+        $publicBaseUrl = $this->settings->getR2PublicBaseUrl();
+        if (empty($this->uploadBaseUrl) || empty($publicBaseUrl)) {
             return $url;
         }
 
         if (str_starts_with($url, $this->uploadBaseUrl)) {
             $tail = substr($url, strlen($this->uploadBaseUrl));
-            return $this->customDomainUrl . $tail;
+            return $publicBaseUrl . $tail;
         }
 
         return $url;
+    }
+
+    /** Build a public object URL from the current domain and stable R2 key. */
+    private function publicUrlForKey(string $key, string $publicBaseUrl): string
+    {
+        $segments = array_map('rawurlencode', explode('/', ltrim($key, '/')));
+
+        return rtrim($publicBaseUrl, '/') . '/' . implode('/', $segments);
     }
 }

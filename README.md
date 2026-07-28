@@ -10,7 +10,7 @@ A WordPress plugin that compresses images, PDFs, audio, and video files through 
 - **Configurable output** — control quality, output format (WebP, AVIF, JPEG, or auto), and max image width
 - **Media library integration** — an "⚡ ImgPress" column shows compression stats (reduction %, before/after size, date) for every attachment
 - **Bulk compress dashboard** — progress bar, per-file results table, and aggregate stats (total saved, average reduction)
-- **Cloudflare R2 storage** — offload media to R2 with one-click bulk uploads, optional automatic push on compress, custom domain support, and optional local file deletion
+- **Cloudflare R2 storage** — offload media to R2 with one-click bulk uploads, optional automatic push on compress, public-hostname support via `r2.dev` or a custom domain, and optional local file deletion
 
 ## Requirements
 
@@ -52,13 +52,15 @@ Use the **Test Connection** button to verify the API is reachable before saving.
 | Access Key ID | — | S3 Access Key ID from R2 API token |
 | Secret Access Key | — | S3 Secret Access Key from R2 API token |
 | Bucket Name | — | Name of your R2 bucket |
-| Custom Domain | — | Optional custom domain for public access (host only) |
+| Custom Domain | — | Optional public hostname for media delivery (`r2.dev` for testing or a custom domain for production) |
 | Auto-push on compress | Disabled | Automatically upload compressed files to R2 |
 | Auto-push on upload | Disabled | Automatically upload files on initial upload |
 | Delete local files | Disabled | ⚠️ Permanently delete local files after R2 sync |
 | Rewrite content URLs | Disabled | Rewrite hardcoded image URLs in posts to R2 URLs |
 
 Use the **Test R2 Connection** button to verify your R2 credentials are valid.
+
+The Cloudflare S3 API endpoint (`https://{account-id}.r2.cloudflarestorage.com`) is for authenticated access, not for public media delivery. ImgPress builds attachment URLs from the configured public hostname and each object's stored R2 key, so you can switch from an `r2.dev` development hostname to a custom domain after offloading without re-uploading the files.
 
 ## Usage
 
@@ -84,7 +86,7 @@ To use Cloudflare R2 storage:
    - Enable R2
    - Enter your Account ID, Access Key ID, and Secret Access Key
    - Specify your bucket name
-   - (Optional) Add a custom domain for public access
+   - (Optional) Add a public hostname (`r2.dev` for testing or a custom domain for production)
    - Test the connection with the **Test R2 Connection** button
 4. **Push files to R2** manually:
    - In the media library, use the **Push to R2** button on individual files

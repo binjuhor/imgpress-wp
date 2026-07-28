@@ -229,6 +229,37 @@
                     <span class="dashicons dashicons-cloud"></span>
                     <?php esc_html_e('R2 Configuration', 'imgpress-wp'); ?>
                 </h2>
+                <div class="notice notice-info inline">
+                    <p><strong><?php esc_html_e('How to get your R2 configuration', 'imgpress-wp'); ?></strong></p>
+                    <ol>
+                        <li>
+                            <?php
+                            printf(
+                                wp_kses_post(__('Open the <a href="%s" target="_blank" rel="noopener noreferrer">Cloudflare R2 dashboard</a>, then create or select a bucket. Copy the bucket name and the Account ID shown under Account Details.', 'imgpress-wp')),
+                                esc_url('https://dash.cloudflare.com/?to=/:account/r2/overview')
+                            );
+                            ?>
+                        </li>
+                        <li>
+                            <?php esc_html_e('Under Account Details, click Manage next to API Tokens. Create an R2 API token with Object Read & Write permission and scope it to this bucket.', 'imgpress-wp'); ?>
+                        </li>
+                        <li>
+                            <?php esc_html_e('Copy the Access Key ID and Secret Access Key when Cloudflare displays them. The secret is shown only once. Do not paste the API token value or your Global API Key.', 'imgpress-wp'); ?>
+                        </li>
+                        <li>
+                            <?php esc_html_e('For public media URLs, open the bucket Settings and connect a Custom Domain for production, or enable the Public Development URL for testing. Enter only the hostname below.', 'imgpress-wp'); ?>
+                        </li>
+                    </ol>
+                    <p>
+                        <a href="<?php echo esc_url('https://developers.cloudflare.com/r2/api/tokens/'); ?>" target="_blank" rel="noopener noreferrer">
+                            <?php esc_html_e('Cloudflare: Create R2 API credentials', 'imgpress-wp'); ?>
+                        </a>
+                        <span aria-hidden="true"> · </span>
+                        <a href="<?php echo esc_url('https://developers.cloudflare.com/r2/buckets/public-buckets/'); ?>" target="_blank" rel="noopener noreferrer">
+                            <?php esc_html_e('Cloudflare: Configure public access', 'imgpress-wp'); ?>
+                        </a>
+                    </p>
+                </div>
                 <table class="form-table" role="presentation">
                     <tr>
                         <th scope="row"><?php esc_html_e('Enable R2', 'imgpress-wp'); ?></th>
@@ -245,9 +276,6 @@
                             </label>
                             <p class="description">
                                 <?php esc_html_e('Enable Cloudflare R2 media storage.', 'imgpress-wp'); ?>
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=imgpress-r2-bulk')); ?>" target="_blank">
-                                    <?php esc_html_e('View R2 Setup Guide →', 'imgpress-wp'); ?>
-                                </a>
                             </p>
                         </td>
                     </tr>
@@ -268,6 +296,9 @@
                                 class="regular-text"
                                 placeholder="abc123def456..."
                             />
+                            <p class="description">
+                                <?php esc_html_e('Find this on the R2 Overview page under Account Details.', 'imgpress-wp'); ?>
+                            </p>
                         </td>
                     </tr>
                     <tr>
@@ -282,6 +313,9 @@
                                 value="<?php echo esc_attr($opts['r2_access_key'] ?? ''); ?>"
                                 class="regular-text"
                             />
+                            <p class="description">
+                                <?php esc_html_e('Use the Access Key ID generated for the R2 API token, not the token value.', 'imgpress-wp'); ?>
+                            </p>
                         </td>
                     </tr>
                     <tr>
@@ -315,6 +349,9 @@
                                 class="regular-text"
                                 placeholder="my-media-bucket"
                             />
+                            <p class="description">
+                                <?php esc_html_e('Enter the exact bucket name shown in R2.', 'imgpress-wp'); ?>
+                            </p>
                         </td>
                     </tr>
                     <tr>
