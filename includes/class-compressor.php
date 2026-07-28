@@ -228,42 +228,6 @@ class Compressor
         return $this->getOriginalBackup($attachmentId) !== null;
     }
 
-    public function hasStaleEmbeddedUrls(int $attachmentId): bool
-    {
-        $backup = $this->getOriginalBackup($attachmentId);
-        if (!$backup || empty($backup['source_file'])) {
-            return false;
-        }
-        $sourcePath = $this->absoluteUploadPath($backup['source_file']);
-        if (!$sourcePath) {
-            return false;
-        }
-        $sourceUrl = $this->localUploadUrl($sourcePath);
-        if (!$sourceUrl) {
-            return false;
-        }
-
-        global $wpdb;
-        $info = pathinfo($sourceUrl);
-        $urlStem = trailingslashit($info['dirname'] ?? '') . ($info['filename'] ?? '');
-        $stems = [$urlStem];
-        $uploads = wp_upload_dir();
-        $publicBase = $this->settings->getR2PublicBaseUrl();
-        if (!empty($uploads['baseurl']) && $publicBase !== '') {
-            $stems[] = str_replace(rtrim($uploads['baseurl'], '/'), rtrim($publicBase, '/'), $urlStem);
-        }
-        foreach (array_unique($stems) as $stem) {
-            if ($wpdb->get_var($wpdb->prepare(
-                "SELECT ID FROM {$wpdb->posts} WHERE post_type <> 'revision' AND post_content LIKE %s LIMIT 1",
-                '%' . $wpdb->esc_like($stem) . '%'
-            ))) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public function deleteOriginalBackup(int $attachmentId): void
     {
         $backup = $this->getOriginalBackup($attachmentId);

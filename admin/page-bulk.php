@@ -39,9 +39,9 @@
             <span id="ip-bulk-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
         </p>
 		<hr style="margin:20px 0">
-		<p class="description"><?php esc_html_e('Re-convert previously optimized images whose format does not match the current Output Format setting. Existing R2 objects are replaced only after the new files upload successfully.', 'imgpress-wp'); ?></p>
+		<p class="description"><?php esc_html_e('Repair embedded content URLs for previously optimized images and convert files that do not match the current Output Format. Existing R2 objects are replaced only after new files upload successfully.', 'imgpress-wp'); ?></p>
 		<p>
-			<button id="ip-reconvert-btn" class="button" disabled><?php esc_html_e('Re-convert optimized images', 'imgpress-wp'); ?></button>
+			<button id="ip-reconvert-btn" class="button" disabled><?php esc_html_e('Repair / re-convert images', 'imgpress-wp'); ?></button>
 			<span id="ip-reconvert-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
 		</p>
     </div>

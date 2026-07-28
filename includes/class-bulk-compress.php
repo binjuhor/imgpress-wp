@@ -118,21 +118,13 @@ class Bulk_Compress
 			'posts_per_page' => -1, 'fields' => 'ids',
 			'meta_query' => [['key' => '_imgpress_compressed_at', 'compare' => 'EXISTS']],
 		]);
-		return array_values(array_filter(array_map('intval', $query->posts), function (int $id) use ($targetMime): bool {
+		return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
 			$mime = strtolower((string) get_post_mime_type($id));
-			if (!str_starts_with($mime, 'image/')) {
-				return false;
-			}
 
-			$localMatches = $mime === $targetMime
-				|| ($targetMime === 'image/jpeg' && $mime === 'image/jpg');
-			$r2 = get_post_meta($id, '_imgpress_r2', true);
-			$r2Key = is_array($r2) ? strtolower((string) ($r2['key'] ?? '')) : '';
-			$targetExtension = $targetMime === 'image/jpeg' ? 'jpg' : substr($targetMime, strlen('image/'));
-			$r2Matches = $r2Key === '' || str_ends_with($r2Key, '.' . $targetExtension)
-				|| ($targetMime === 'image/jpeg' && str_ends_with($r2Key, '.jpeg'));
-
-			return !$localMatches || !$r2Matches || $this->compressor->hasStaleEmbeddedUrls($id);
+			// Keep the recovery action available for every optimized image. Older
+			// content can contain relative or plugin-generated URLs that cannot be
+			// detected reliably before the repair pass runs.
+			return str_starts_with($mime, 'image/');
 		}));
 	}
 

@@ -33,8 +33,8 @@
 			reconvertIds = res.data.ids;
 			$('#ip-reconvert-btn').prop('disabled', reconvertIds.length === 0);
 			$('#ip-reconvert-status').text(reconvertIds.length
-				? reconvertIds.length + ' image(s) can be converted to ' + res.data.format.toUpperCase() + ' or need content URL repair.'
-				: 'All optimized images already use the selected format.');
+				? reconvertIds.length + ' optimized image(s) available for content URL repair or conversion to ' + res.data.format.toUpperCase() + '.'
+				: 'No optimized images are available.');
 		});
 
         $('#ip-bulk-btn').on('click', function () {
