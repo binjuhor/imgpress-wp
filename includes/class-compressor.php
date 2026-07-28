@@ -38,6 +38,8 @@ class Compressor
                 return false;
             }
 
+            $this->repairEmbeddedUrlsFromBackup($attachmentId, $filePath);
+
             return $this->settings->isR2Configured()
                 ? $this->r2Uploader->upload($attachmentId)
                 : true;
@@ -82,6 +84,8 @@ class Compressor
             return false;
         }
 
+        $oldMetadata = wp_get_attachment_metadata($attachmentId);
+
         $targetPath = $this->getTargetPath($filePath, $mime, $result['mime']);
 
         if (file_put_contents($targetPath, $result['data']) === false) {
@@ -110,6 +114,15 @@ class Compressor
 
             $metadata = wp_generate_attachment_metadata($attachmentId, $targetPath);
             wp_update_attachment_metadata($attachmentId, $metadata);
+
+            if ($targetPath !== $filePath) {
+                $this->replaceEmbeddedAttachmentUrls(
+                    $filePath,
+                    is_array($oldMetadata) ? $oldMetadata : [],
+                    $targetPath,
+                    is_array($metadata) ? $metadata : []
+                );
+            }
         }
 
         if ($targetPath !== $filePath && file_exists($filePath)) {
@@ -151,6 +164,7 @@ class Compressor
         }
 
         $currentPath = get_attached_file($attachmentId);
+        $currentMetadata = wp_get_attachment_metadata($attachmentId);
         $restorePath = $this->absoluteUploadPath($backup['source_file']);
         if (!$restorePath) {
             return false;
@@ -184,6 +198,15 @@ class Compressor
         if (str_starts_with($backup['mime'], 'image/')) {
             $metadata = wp_generate_attachment_metadata($attachmentId, $restorePath);
             wp_update_attachment_metadata($attachmentId, $metadata);
+
+            if ($currentPath && $currentPath !== $restorePath) {
+                $this->replaceEmbeddedAttachmentUrls(
+                    $currentPath,
+                    is_array($currentMetadata) ? $currentMetadata : [],
+                    $restorePath,
+                    is_array($metadata) ? $metadata : []
+                );
+            }
         }
 
         if ($currentPath && $currentPath !== $restorePath && file_exists($currentPath)) {
@@ -203,6 +226,42 @@ class Compressor
     public function canRestore(int $attachmentId): bool
     {
         return $this->getOriginalBackup($attachmentId) !== null;
+    }
+
+    public function hasStaleEmbeddedUrls(int $attachmentId): bool
+    {
+        $backup = $this->getOriginalBackup($attachmentId);
+        if (!$backup || empty($backup['source_file'])) {
+            return false;
+        }
+        $sourcePath = $this->absoluteUploadPath($backup['source_file']);
+        if (!$sourcePath) {
+            return false;
+        }
+        $sourceUrl = $this->localUploadUrl($sourcePath);
+        if (!$sourceUrl) {
+            return false;
+        }
+
+        global $wpdb;
+        $info = pathinfo($sourceUrl);
+        $urlStem = trailingslashit($info['dirname'] ?? '') . ($info['filename'] ?? '');
+        $stems = [$urlStem];
+        $uploads = wp_upload_dir();
+        $publicBase = $this->settings->getR2PublicBaseUrl();
+        if (!empty($uploads['baseurl']) && $publicBase !== '') {
+            $stems[] = str_replace(rtrim($uploads['baseurl'], '/'), rtrim($publicBase, '/'), $urlStem);
+        }
+        foreach (array_unique($stems) as $stem) {
+            if ($wpdb->get_var($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts} WHERE post_type <> 'revision' AND post_content LIKE %s LIMIT 1",
+                '%' . $wpdb->esc_like($stem) . '%'
+            ))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function deleteOriginalBackup(int $attachmentId): void
@@ -291,6 +350,133 @@ class Compressor
             $sizePath = $directory . '/' . $size['file'];
             if (file_exists($sizePath)) {
                 wp_delete_file($sizePath);
+            }
+        }
+    }
+
+    /** Update hardcoded full-size and generated-size URLs after an extension change. */
+    private function replaceEmbeddedAttachmentUrls(
+        string $oldPath,
+        array $oldMetadata,
+        string $newPath,
+        array $newMetadata
+    ): void {
+        $replacements = [];
+        $oldUrl = $this->localUploadUrl($oldPath);
+        $newUrl = $this->localUploadUrl($newPath);
+        if ($oldUrl && $newUrl && $oldUrl !== $newUrl) {
+            $replacements[$oldUrl] = $newUrl;
+        }
+
+        $oldDirectory = dirname($oldPath);
+        $newDirectory = dirname($newPath);
+        foreach (($oldMetadata['sizes'] ?? []) as $sizeName => $oldSize) {
+            $newSize = $newMetadata['sizes'][$sizeName] ?? null;
+            if (empty($oldSize['file']) || empty($newSize['file'])) {
+                continue;
+            }
+            $oldSizeUrl = $this->localUploadUrl($oldDirectory . '/' . $oldSize['file']);
+            $newSizeUrl = $this->localUploadUrl($newDirectory . '/' . $newSize['file']);
+            if ($oldSizeUrl && $newSizeUrl && $oldSizeUrl !== $newSizeUrl) {
+                $replacements[$oldSizeUrl] = $newSizeUrl;
+            }
+        }
+
+        $this->replaceUrlsInPostContent($replacements);
+    }
+
+    /** Repair content converted by older ImgPress versions that did not migrate URLs. */
+    private function repairEmbeddedUrlsFromBackup(int $attachmentId, string $currentPath): void
+    {
+        $backup = $this->getOriginalBackup($attachmentId);
+        if (!$backup || empty($backup['source_file'])) {
+            return;
+        }
+
+        $sourcePath = $this->absoluteUploadPath($backup['source_file']);
+        if (!$sourcePath || $sourcePath === $currentPath) {
+            return;
+        }
+
+        $currentMetadata = wp_get_attachment_metadata($attachmentId);
+        $sourceExtension = strtolower((string) pathinfo($sourcePath, PATHINFO_EXTENSION));
+        $replacements = [];
+        $sourceUrl = $this->localUploadUrl($sourcePath);
+        $currentUrl = $this->localUploadUrl($currentPath);
+        if ($sourceUrl && $currentUrl) {
+            $replacements[$sourceUrl] = $currentUrl;
+        }
+
+        foreach ((is_array($currentMetadata) ? ($currentMetadata['sizes'] ?? []) : []) as $size) {
+            if (empty($size['file']) || $sourceExtension === '') {
+                continue;
+            }
+            $currentSizePath = dirname($currentPath) . '/' . $size['file'];
+            $sourceSizePath = preg_replace('/\.[^.]+$/', '.' . $sourceExtension, $currentSizePath);
+            if (!$sourceSizePath) {
+                continue;
+            }
+            $sourceSizeUrl = $this->localUploadUrl($sourceSizePath);
+            $currentSizeUrl = $this->localUploadUrl($currentSizePath);
+            if ($sourceSizeUrl && $currentSizeUrl) {
+                $replacements[$sourceSizeUrl] = $currentSizeUrl;
+            }
+        }
+
+        $this->replaceUrlsInPostContent($replacements);
+    }
+
+    private function localUploadUrl(string $path): ?string
+    {
+        $relative = _wp_relative_upload_path($path);
+        if (!$relative) {
+            return null;
+        }
+        $uploads = wp_upload_dir();
+
+        return trailingslashit($uploads['baseurl']) . ltrim(str_replace('\\', '/', $relative), '/');
+    }
+
+    /** @param array<string, string> $replacements */
+    private function replaceUrlsInPostContent(array $replacements): void
+    {
+        if (!$replacements) {
+            return;
+        }
+
+        $uploads = wp_upload_dir();
+        $localBase = rtrim((string) ($uploads['baseurl'] ?? ''), '/');
+        $publicBase = rtrim($this->settings->getR2PublicBaseUrl(), '/');
+        if ($localBase !== '' && $publicBase !== '') {
+            foreach ($replacements as $oldUrl => $newUrl) {
+                if (str_starts_with($oldUrl, $localBase) && str_starts_with($newUrl, $localBase)) {
+                    $replacements[$publicBase . substr($oldUrl, strlen($localBase))]
+                        = $publicBase . substr($newUrl, strlen($localBase));
+                }
+            }
+        }
+
+        global $wpdb;
+        uksort($replacements, static fn(string $a, string $b): int => strlen($b) <=> strlen($a));
+        $postIds = [];
+        foreach (array_keys($replacements) as $oldUrl) {
+            $ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts} WHERE post_type <> 'revision' AND post_content LIKE %s",
+                '%' . $wpdb->esc_like($oldUrl) . '%'
+            ));
+            foreach ($ids as $id) {
+                $postIds[(int) $id] = true;
+            }
+        }
+
+        foreach (array_keys($postIds) as $postId) {
+            $post = get_post($postId);
+            if (!$post || !is_string($post->post_content)) {
+                continue;
+            }
+            $content = str_replace(array_keys($replacements), array_values($replacements), $post->post_content);
+            if ($content !== $post->post_content) {
+                wp_update_post(['ID' => $postId, 'post_content' => $content]);
             }
         }
     }

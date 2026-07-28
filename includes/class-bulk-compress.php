@@ -118,7 +118,7 @@ class Bulk_Compress
 			'posts_per_page' => -1, 'fields' => 'ids',
 			'meta_query' => [['key' => '_imgpress_compressed_at', 'compare' => 'EXISTS']],
 		]);
-		return array_values(array_filter(array_map('intval', $query->posts), static function (int $id) use ($targetMime): bool {
+		return array_values(array_filter(array_map('intval', $query->posts), function (int $id) use ($targetMime): bool {
 			$mime = strtolower((string) get_post_mime_type($id));
 			if (!str_starts_with($mime, 'image/')) {
 				return false;
@@ -132,7 +132,7 @@ class Bulk_Compress
 			$r2Matches = $r2Key === '' || str_ends_with($r2Key, '.' . $targetExtension)
 				|| ($targetMime === 'image/jpeg' && str_ends_with($r2Key, '.jpeg'));
 
-			return !$localMatches || !$r2Matches;
+			return !$localMatches || !$r2Matches || $this->compressor->hasStaleEmbeddedUrls($id);
 		}));
 	}
 

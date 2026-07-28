@@ -33,7 +33,7 @@
 			reconvertIds = res.data.ids;
 			$('#ip-reconvert-btn').prop('disabled', reconvertIds.length === 0);
 			$('#ip-reconvert-status').text(reconvertIds.length
-				? reconvertIds.length + ' image(s) can be converted to ' + res.data.format.toUpperCase() + '.'
+				? reconvertIds.length + ' image(s) can be converted to ' + res.data.format.toUpperCase() + ' or need content URL repair.'
 				: 'All optimized images already use the selected format.');
 		});
 
