@@ -94,4 +94,38 @@ class Media_Columns_Test extends \WP_UnitTestCase
 
         $this->assertTrue($method->invoke($this->mediaColumns, $attachmentId));
     }
+
+    public function test_attachment_deletion_removes_recorded_r2_objects(): void
+    {
+        $post = $this->factory->attachment->create_and_get();
+        $this->uploader->method('getStatus')->with($post->ID)->willReturn([
+            'status' => 'uploaded',
+            'key' => '2026/07/photo.jpg',
+        ]);
+        $this->uploader->expects($this->once())->method('remove')->with($post->ID)->willReturn(true);
+
+        $this->assertNull($this->mediaColumns->deleteR2BeforeAttachment(null, $post, true));
+    }
+
+    public function test_attachment_deletion_is_cancelled_when_r2_cleanup_fails(): void
+    {
+        $post = $this->factory->attachment->create_and_get();
+        $this->uploader->method('getStatus')->with($post->ID)->willReturn([
+            'status' => 'uploaded',
+            'key' => '2026/07/photo.jpg',
+        ]);
+        $this->uploader->method('remove')->with($post->ID)->willReturn(false);
+
+        $this->assertFalse($this->mediaColumns->deleteR2BeforeAttachment(null, $post, true));
+    }
+
+    public function test_failed_upload_without_key_does_not_block_attachment_deletion(): void
+    {
+        $post = $this->factory->attachment->create_and_get();
+        $this->uploader->method('getStatus')->with($post->ID)->willReturn(['status' => 'failed']);
+        $this->uploader->expects($this->never())->method('remove');
+
+        $this->assertNull($this->mediaColumns->deleteR2BeforeAttachment(null, $post, true));
+    }
+
 }

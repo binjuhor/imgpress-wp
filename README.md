@@ -103,6 +103,12 @@ To use Cloudflare R2 storage:
    - Check "Delete local files after uploading" to save server space (⚠️ ensure you have backups!)
    - Check "Rewrite content URLs" to automatically update post content with R2 URLs
 
+Permanently deleting an attachment from the Media Library also deletes its recorded original and generated-size objects from R2. If R2 cleanup fails, ImgPress cancels the WordPress deletion and shows an error so the attachment can be retried safely.
+
+### Orphaned R2 objects
+
+Go to **ImgPress → R2 Offload → Orphaned R2 objects** and click **Scan bucket** to preview objects at least 24 hours old that are not referenced by attachment metadata. Review the results, select only the objects you recognize as obsolete, then click **Delete selected**. Each selected object is rechecked immediately before deletion. Scanning never deletes objects automatically; this is especially important when the R2 bucket is shared with another application.
+
 ## Data stored
 
 For each compressed attachment the plugin saves the following post meta:

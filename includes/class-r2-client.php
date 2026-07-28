@@ -6,7 +6,7 @@ defined('ABSPATH') || exit;
 
 /**
  * R2_Client — S3-compatible Cloudflare R2 client with native AWS SigV4 signing.
- * No external dependencies. Supports PutObject, DeleteObject, HeadBucket.
+ * No external dependencies. Supports object transfer, deletion, listing, and bucket checks.
  */
 class R2_Client
 {
@@ -154,6 +154,85 @@ class R2_Client
         ]);
 
         return $this->parseResponse($response);
+    }
+
+    /**
+     * List one page of bucket objects through S3 ListObjectsV2.
+     *
+     * @return array{ok:bool,status:int,objects?:array<int,array{key:string,size:int,lastModified:string}>,nextToken?:string,error?:string}
+     */
+    public function listObjects(string $continuationToken = '', int $maxKeys = 250, string $prefix = ''): array
+    {
+        $params = [
+            'list-type' => '2',
+            'max-keys' => max(1, min(1000, $maxKeys)),
+        ];
+        if ($continuationToken !== '') {
+            $params['continuation-token'] = $continuationToken;
+        }
+        if ($prefix !== '') {
+            $params['prefix'] = $prefix;
+        }
+        ksort($params);
+        $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+
+        $payloadHash = $this->hashPayload('');
+        $headers = [
+            'host' => $this->getHost(),
+            'x-amz-content-sha256' => $payloadHash,
+            'x-amz-date' => $this->getAmzDate(),
+        ];
+        $canonicalRequest = $this->buildCanonicalRequest(
+            'GET',
+            $this->getBucketPath(),
+            $query,
+            $headers,
+            $payloadHash
+        );
+        $headers['Authorization'] = $this->buildAuthorizationHeader(
+            $canonicalRequest,
+            $headers,
+            $this->getSignedHeaders($headers)
+        );
+
+        $response = wp_remote_request($this->getEndpoint() . $this->getBucketPath() . '?' . $query, [
+            'method' => 'GET',
+            'headers' => $headers,
+            'timeout' => $this->settings->getRequestTimeout(),
+            'sslverify' => true,
+            'blocking' => true,
+        ]);
+        $parsed = $this->parseResponse($response);
+        if (!$parsed['ok']) {
+            return $parsed;
+        }
+
+        $xml = @simplexml_load_string(wp_remote_retrieve_body($response), 'SimpleXMLElement', LIBXML_NONET);
+        if ($xml === false) {
+            return ['ok' => false, 'status' => $parsed['status'], 'error' => 'Malformed list response'];
+        }
+
+        $objects = [];
+        foreach ($xml->Contents ?? [] as $item) {
+            $objects[] = [
+                'key' => (string) $item->Key,
+                'size' => (int) $item->Size,
+                'lastModified' => (string) $item->LastModified,
+            ];
+        }
+
+        $isTruncated = (string) ($xml->IsTruncated ?? '') === 'true';
+        $nextToken = $isTruncated ? (string) ($xml->NextContinuationToken ?? '') : '';
+        if ($isTruncated && $nextToken === '') {
+            return ['ok' => false, 'status' => $parsed['status'], 'error' => 'Malformed paginated list response'];
+        }
+
+        return [
+            'ok' => true,
+            'status' => $parsed['status'],
+            'objects' => $objects,
+            'nextToken' => $nextToken,
+        ];
     }
 
     /**

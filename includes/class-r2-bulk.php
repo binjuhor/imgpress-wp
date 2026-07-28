@@ -11,6 +11,10 @@ defined('ABSPATH') || exit;
  */
 class R2_Bulk
 {
+	private const ORPHAN_MINIMUM_AGE = 86400;
+
+	private $client = null;
+
 	public function __construct(
 		private R2_Uploader $uploader,
 		private $settings
@@ -21,6 +25,8 @@ class R2_Bulk
 		add_action('wp_ajax_imgpress_r2_bulk_get_uploaded_ids', [$this, 'handleGetUploadedIds']);
 		add_action('wp_ajax_imgpress_r2_bulk_download', [$this, 'handleDownload']);
 		add_action('wp_ajax_imgpress_r2_bulk_delete_local', [$this, 'handleDeleteLocal']);
+		add_action('wp_ajax_imgpress_r2_scan_orphans', [$this, 'handleScanOrphans']);
+		add_action('wp_ajax_imgpress_r2_delete_orphan', [$this, 'handleDeleteOrphan']);
 		add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
 	}
 
@@ -102,6 +108,80 @@ class R2_Bulk
 		$this->handleFileAction('deleteLocal');
 	}
 
+	public function handleScanOrphans(): void
+	{
+		$this->guardCleanupRequest();
+		$token = isset($_POST['continuation_token']) && is_string($_POST['continuation_token'])
+			? wp_unslash($_POST['continuation_token'])
+			: '';
+		$result = $this->getClient()->listObjects($token, 250);
+		if (!$result['ok']) {
+			wp_send_json_error(['message' => $result['error'] ?? 'Could not list R2 objects.']);
+		}
+
+		$referenced = $this->getReferencedKeys();
+		$orphans = array_values(array_filter($result['objects'] ?? [], function (array $object) use ($referenced): bool {
+			return !isset($referenced[$object['key']]) && $this->isOldEnoughForCleanup($object['lastModified'] ?? '');
+		}));
+
+		wp_send_json_success([
+			'objects' => $orphans,
+			'scanned' => count($result['objects'] ?? []),
+			'nextToken' => $result['nextToken'] ?? '',
+		]);
+	}
+
+	public function handleDeleteOrphan(): void
+	{
+		$this->guardCleanupRequest();
+		$key = isset($_POST['key']) && is_string($_POST['key']) ? wp_unslash($_POST['key']) : '';
+		if ($key === '') {
+			wp_send_json_error(['message' => 'Invalid object key.']);
+		}
+
+		if (isset($this->getReferencedKeys()[$key])) {
+			wp_send_json_error(['message' => 'Object is referenced by a WordPress attachment.']);
+		}
+
+		$current = $this->getClient()->listObjects('', 2, $key);
+		if (!$current['ok']) {
+			wp_send_json_error(['message' => $current['error'] ?? 'Could not verify the object before deletion.']);
+		}
+		$object = null;
+		foreach ($current['objects'] ?? [] as $candidate) {
+			if (($candidate['key'] ?? '') === $key) {
+				$object = $candidate;
+				break;
+			}
+		}
+		if (!$object || !$this->isOldEnoughForCleanup($object['lastModified'] ?? '')) {
+			wp_send_json_error(['message' => 'Object no longer exists or is too new to delete safely.']);
+		}
+
+		$result = $this->getClient()->deleteObject($key);
+		if (!$result['ok']) {
+			wp_send_json_error(['message' => $result['error'] ?? 'Delete failed.']);
+		}
+
+		wp_send_json_success(['key' => $key]);
+	}
+
+	private function isOldEnoughForCleanup(string $lastModified): bool
+	{
+		$modifiedAt = strtotime($lastModified);
+
+		return $modifiedAt !== false && $modifiedAt <= time() - self::ORPHAN_MINIMUM_AGE;
+	}
+
+	private function getClient(): R2_Client
+	{
+		if (!$this->client) {
+			$this->client = new R2_Client($this->settings);
+		}
+
+		return $this->client;
+	}
+
 	private function handleFileAction(string $method): void
 	{
 		$this->guardRequest();
@@ -126,6 +206,46 @@ class R2_Bulk
 		if (!$this->settings->isR2Configured()) {
 			wp_send_json_error('R2 is not configured');
 		}
+	}
+
+	private function guardCleanupRequest(): void
+	{
+		check_ajax_referer('imgpress_r2_cleanup');
+		if (!current_user_can('manage_options')) {
+			wp_send_json_error('Unauthorized', 403);
+		}
+		if (!$this->settings->isR2Configured()) {
+			wp_send_json_error('R2 is not configured');
+		}
+	}
+
+	/** @return array<string, true> */
+	private function getReferencedKeys(): array
+	{
+		global $wpdb;
+		$values = $wpdb->get_col($wpdb->prepare(
+			"SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+			'_imgpress_r2'
+		));
+		$keys = [];
+		foreach ($values as $value) {
+			$meta = maybe_unserialize($value);
+			if (!is_array($meta)) {
+				continue;
+			}
+			if (!empty($meta['key']) && is_string($meta['key'])) {
+				$keys[$meta['key']] = true;
+			}
+			if (!empty($meta['sizes']) && is_array($meta['sizes'])) {
+				foreach ($meta['sizes'] as $key) {
+					if (is_string($key) && $key !== '') {
+						$keys[$key] = true;
+					}
+				}
+			}
+		}
+
+		return $keys;
 	}
 
 	/**
@@ -198,6 +318,7 @@ class R2_Bulk
 		wp_localize_script('imgpress-r2-bulk', 'ImgPressAdmin', [
 			'ajaxUrl' => admin_url('admin-ajax.php'),
 			'nonce'   => wp_create_nonce('imgpress_r2_bulk'),
+			'cleanupNonce' => wp_create_nonce('imgpress_r2_cleanup'),
 		]);
 
 		wp_enqueue_script(

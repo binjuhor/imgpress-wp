@@ -24,9 +24,11 @@ class Media_Columns
         add_action('wp_ajax_imgpress_media_bulk_item', [$this, 'handleBulkItem']);
         add_action('admin_enqueue_scripts',       [$this, 'enqueueAssets']);
         add_action('delete_attachment',           [$this, 'handleDeleteAttachment']);
+        add_filter('pre_delete_attachment',        [$this, 'deleteR2BeforeAttachment'], 10, 3);
         add_filter('bulk_actions-upload',          [$this, 'addBulkActions']);
         add_filter('handle_bulk_actions-upload',   [$this, 'handleBulkActionFallback'], 10, 3);
         add_action('admin_notices',                [$this, 'renderBulkActionNotice']);
+        add_action('admin_notices',                [$this, 'renderR2DeleteNotice']);
     }
 
     public function addColumn(array $columns): array
@@ -265,6 +267,51 @@ class Media_Columns
     public function handleDeleteAttachment(int $attachmentId): void
     {
         $this->compressor->deleteOriginalBackup($attachmentId);
+    }
+
+    /** Remove recorded R2 objects before WordPress permanently deletes attachment metadata. */
+    public function deleteR2BeforeAttachment($delete, \WP_Post $post, bool $forceDelete)
+    {
+        // WordPress applies this filter only after its optional media-trash path.
+        // A false $forceDelete can therefore still be a permanent deletion when
+        // MEDIA_TRASH is disabled, so it must not bypass R2 cleanup.
+        if ($delete !== null || !$this->uploader) {
+            return $delete;
+        }
+
+        $status = $this->uploader->getStatus($post->ID);
+        // Failed/incomplete uploads do not own an R2 object and must never block
+        // WordPress from deleting the attachment.
+        if (!is_array($status) || ($status['status'] ?? '') !== 'uploaded' || empty($status['key'])) {
+            return null;
+        }
+
+        if ($this->uploader->remove($post->ID)) {
+            return null;
+        }
+
+        error_log("[ImgPress R2] Attachment {$post->ID} was not deleted because its R2 objects could not be removed.");
+        set_transient('imgpress_r2_delete_error_' . get_current_user_id(), $post->post_title, 60);
+
+        return false;
+    }
+
+    public function renderR2DeleteNotice(): void
+    {
+        $key = 'imgpress_r2_delete_error_' . get_current_user_id();
+        $title = get_transient($key);
+        if ($title === false) {
+            return;
+        }
+
+        delete_transient($key);
+        printf(
+            '<div class="notice notice-error is-dismissible"><p>%s</p></div>',
+            esc_html(sprintf(
+                __('“%s” was not deleted because ImgPress could not remove its R2 objects. Check the server log and try again.', 'imgpress-wp'),
+                (string) $title
+            ))
+        );
     }
 
     public function handleR2Push(): void

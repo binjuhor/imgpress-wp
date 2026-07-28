@@ -63,6 +63,35 @@
 		<p id="ip-r2-file-status" class="description"></p>
 	</div>
 
+	<div class="card" style="max-width:800px;margin-top:16px;padding:20px 24px">
+		<h2><?php esc_html_e('Orphaned R2 objects', 'imgpress-wp'); ?></h2>
+		<p class="description">
+			<?php esc_html_e('Preview objects at least 24 hours old that are not referenced by any WordPress attachment. A shared bucket may contain valid files owned by other applications, so review every key before deleting it.', 'imgpress-wp'); ?>
+		</p>
+		<p>
+			<button id="ip-r2-scan-orphans-btn" class="button" <?php disabled(!$GLOBALS['imgpress_settings']->isR2Configured()); ?>>
+				<?php esc_html_e('Scan bucket', 'imgpress-wp'); ?>
+			</button>
+			<button id="ip-r2-delete-orphans-btn" class="button button-link-delete" disabled>
+				<?php esc_html_e('Delete selected', 'imgpress-wp'); ?>
+			</button>
+			<span id="ip-r2-orphan-status" class="description" style="margin-left:10px"></span>
+		</p>
+		<div id="ip-r2-orphan-table-wrap" style="display:none">
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<td class="check-column"><input type="checkbox" id="ip-r2-select-all-orphans" aria-label="<?php esc_attr_e('Select all orphaned objects', 'imgpress-wp'); ?>" /></td>
+						<th><?php esc_html_e('Object key', 'imgpress-wp'); ?></th>
+						<th style="width:110px"><?php esc_html_e('Size', 'imgpress-wp'); ?></th>
+						<th style="width:170px"><?php esc_html_e('Last modified', 'imgpress-wp'); ?></th>
+					</tr>
+				</thead>
+				<tbody id="ip-r2-orphan-results"></tbody>
+			</table>
+		</div>
+	</div>
+
 	<div id="ip-r2-results-card" style="display:none;margin-top:24px">
 		<h2><?php esc_html_e('Results', 'imgpress-wp'); ?></h2>
 		<table class="wp-list-table widefat fixed striped">
