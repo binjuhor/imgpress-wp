@@ -13,6 +13,7 @@
     $width      = (int) ($opts['max_width'] ?? 1600);
     $types      = (array) ($opts['enabled_types'] ?? ['image', 'pdf', 'audio', 'video']);
     $timeout    = (int) ($opts['request_timeout'] ?? 120);
+    $r2CacheControl = (string) ($opts['r2_cache_control'] ?? 'public, max-age=31536000, immutable');
     $cacheEnabled = !empty($opts['cache_enabled']);
     $cacheLifespan = (int) ($opts['cache_lifespan'] ?? DAY_IN_SECONDS);
     $cacheExcludedUrls = (string) ($opts['cache_excluded_urls'] ?? "/wp-admin/*\n/wp-login.php*");
@@ -369,6 +370,23 @@
                             />
                             <p class="description">
                                 <?php esc_html_e('Required for clickable R2 links and URL rewriting. Use your bucket public r2.dev domain or a Cloudflare custom domain. Host only, no scheme.', 'imgpress-wp'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="r2_cache_control"><?php esc_html_e('Static asset Cache-Control', 'imgpress-wp'); ?></label>
+                        </th>
+                        <td>
+                            <input
+                                type="text"
+                                id="r2_cache_control"
+                                name="imgpress_wp_options[r2_cache_control]"
+                                value="<?php echo esc_attr($r2CacheControl); ?>"
+                                class="regular-text"
+                            />
+                            <p class="description">
+                                <?php esc_html_e('Cache policy added to images, fonts, and videos uploaded to R2.', 'imgpress-wp'); ?>
                             </p>
                         </td>
                     </tr>

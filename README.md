@@ -54,6 +54,7 @@ Use the **Test Connection** button to verify the API is reachable before saving.
 | Secret Access Key | — | S3 Secret Access Key from R2 API token |
 | Bucket Name | — | Name of your R2 bucket |
 | Custom Domain | — | Optional public hostname for media delivery (`r2.dev` for testing or a custom domain for production) |
+| Static asset Cache-Control | `public, max-age=31536000, immutable` | Cache policy applied to uploaded images, fonts, and videos |
 | Auto-push on compress | Disabled | Automatically upload compressed files to R2 |
 | Auto-push on upload | Disabled | Automatically upload files on initial upload |
 | Delete local files | Disabled | ⚠️ Permanently delete local files after R2 sync |
@@ -62,6 +63,8 @@ Use the **Test Connection** button to verify the API is reachable before saving.
 Use the **Test R2 Connection** button to verify your R2 credentials are valid.
 
 The Cloudflare S3 API endpoint (`https://{account-id}.r2.cloudflarestorage.com`) is for authenticated access, not for public media delivery. ImgPress builds attachment URLs from the configured public hostname and each object's stored R2 key, so you can switch from an `r2.dev` development hostname to a custom domain after offloading without re-uploading the files.
+
+ImgPress applies the configured Cache-Control policy to static images (`jpg`, `jpeg`, `png`, `webp`, `avif`, `svg`), fonts (`woff`, `woff2`), and videos (`mp4`, `webm`). Dynamic and temporary objects are left unchanged. Updating an existing object's policy preserves its content type, content disposition, content encoding, and custom metadata.
 
 ## Usage
 

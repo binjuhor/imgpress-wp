@@ -29,6 +29,7 @@ class Config
             'r2_push_on_upload' => false,
             'r2_delete_local' => false,
             'r2_rewrite_content' => false,
+            'r2_cache_control' => 'public, max-age=31536000, immutable',
             'cache_enabled' => false,
             'cache_lifespan' => DAY_IN_SECONDS,
             'cache_advanced_dropin' => false,

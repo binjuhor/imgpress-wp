@@ -121,6 +121,7 @@ class Settings
             'r2_push_on_upload'   => !empty($input['r2_push_on_upload']),
             'r2_delete_local'     => !empty($input['r2_delete_local']),
             'r2_rewrite_content'  => !empty($input['r2_rewrite_content']),
+            'r2_cache_control'    => $this->sanitizeCacheControl($input['r2_cache_control'] ?? ''),
             'cache_enabled'            => !empty($input['cache_enabled']),
             'cache_lifespan'           => max(MINUTE_IN_SECONDS, min(MONTH_IN_SECONDS, (int) ($input['cache_lifespan'] ?? DAY_IN_SECONDS))),
             'cache_advanced_dropin'    => !empty($input['cache_advanced_dropin']),
@@ -212,6 +213,13 @@ class Settings
         }
 
         return rtrim(preg_replace('#^https?://#i', '', $value), '/');
+    }
+
+    private function sanitizeCacheControl(string $value): string
+    {
+        $value = sanitize_text_field($value);
+
+        return $value !== '' ? $value : 'public, max-age=31536000, immutable';
     }
 
     private function sanitizeTextarea(string $value): string
@@ -403,6 +411,11 @@ class Settings
     public function isR2RewriteContent(): bool
     {
         return (bool) ($this->options['r2_rewrite_content'] ?? false);
+    }
+
+    public function getR2CacheControl(): string
+    {
+        return (string) ($this->options['r2_cache_control'] ?? 'public, max-age=31536000, immutable');
     }
 
     public function getR2Endpoint(): string

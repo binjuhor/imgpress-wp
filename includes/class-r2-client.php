@@ -25,11 +25,23 @@ class R2_Client
      * @param string $key        Object key in bucket (e.g., 'uploads/photo.jpg')
      * @param string $data       File contents (binary string)
      * @param string $contentType MIME type (e.g., 'image/jpeg')
+     * @param array  $metadata    Standard and custom S3 object metadata
      *
      * @return array{ok: bool, status: int, etag?: string, size?: int, error?: string}
      */
-    public function putObject(string $key, string $data, string $contentType = 'application/octet-stream'): array
+    public function putObject(
+        string $key,
+        string $data,
+        string $contentType = 'application/octet-stream',
+        array $metadata = []
+    ): array
     {
+        if ($this->isStaticAsset($key) && empty($metadata['CacheControl'])) {
+            $metadata['CacheControl'] = method_exists($this->settings, 'getR2CacheControl')
+                ? $this->settings->getR2CacheControl()
+                : 'public, max-age=31536000, immutable';
+        }
+
         $method = 'PUT';
         $payloadHash = $this->hashPayload($data);
         $headers = [
@@ -38,6 +50,7 @@ class R2_Client
             'x-amz-content-sha256' => $payloadHash,
             'x-amz-date' => $this->getAmzDate(),
         ];
+        $headers = array_merge($headers, $this->metadataHeaders($metadata));
 
         $signedHeaders = $this->signRequest($method, $key, $headers, $payloadHash);
 
@@ -53,6 +66,72 @@ class R2_Client
         ]);
 
         return $this->parseResponse($response);
+    }
+
+    /** Read object headers and metadata without downloading its body. */
+    public function headObject(string $key): array
+    {
+        $payloadHash = $this->hashPayload('');
+        $headers = [
+            'host' => $this->getHost(),
+            'x-amz-content-sha256' => $payloadHash,
+            'x-amz-date' => $this->getAmzDate(),
+        ];
+        $signedHeaders = $this->signRequest('HEAD', $key, $headers, $payloadHash);
+        $response = wp_remote_request($this->getEndpoint() . $this->getObjectPath($key), [
+            'method' => 'HEAD',
+            'headers' => $signedHeaders,
+            'timeout' => $this->settings->getRequestTimeout(),
+            'sslverify' => true,
+            'blocking' => true,
+        ]);
+        $parsed = $this->parseResponse($response);
+        if (!$parsed['ok']) {
+            return $parsed;
+        }
+
+        $parsed['metadata'] = $this->objectMetadata(wp_remote_retrieve_headers($response));
+
+        return $parsed;
+    }
+
+    /** Replace metadata on an existing object by copying it onto itself. */
+    public function copyObject(string $key, array $metadata): array
+    {
+        $payloadHash = $this->hashPayload('');
+        $headers = [
+            'host' => $this->getHost(),
+            'x-amz-content-sha256' => $payloadHash,
+            'x-amz-copy-source' => $this->getObjectPath($key),
+            'x-amz-date' => $this->getAmzDate(),
+            'x-amz-metadata-directive' => 'REPLACE',
+        ];
+        $headers = array_merge($headers, $this->metadataHeaders($metadata));
+        $signedHeaders = $this->signRequest('PUT', $key, $headers, $payloadHash);
+        $response = wp_remote_request($this->getEndpoint() . $this->getObjectPath($key), [
+            'method' => 'PUT',
+            'headers' => $signedHeaders,
+            'body' => '',
+            'timeout' => $this->settings->getRequestTimeout(),
+            'sslverify' => true,
+            'blocking' => true,
+        ]);
+
+        return $this->parseResponse($response);
+    }
+
+    /** Update only Cache-Control while retaining all existing object metadata. */
+    public function updateObjectCacheControl(string $key, string $cacheControl): array
+    {
+        $head = $this->headObject($key);
+        if (!$head['ok']) {
+            return $head;
+        }
+
+        $metadata = $head['metadata'];
+        $metadata['CacheControl'] = $cacheControl;
+
+        return $this->copyObject($key, $metadata);
     }
 
     /**
@@ -393,6 +472,80 @@ class R2_Client
         $segments = array_map('rawurlencode', $segments);
 
         return implode('/', $segments);
+    }
+
+    private function isStaticAsset(string $key): bool
+    {
+        return in_array(strtolower(pathinfo($key, PATHINFO_EXTENSION)), [
+            'jpg',
+            'jpeg',
+            'png',
+            'webp',
+            'avif',
+            'svg',
+            'woff',
+            'woff2',
+            'mp4',
+            'webm',
+        ], true);
+    }
+
+    /** Convert AWS SDK-style metadata keys to signed HTTP headers. */
+    private function metadataHeaders(array $metadata): array
+    {
+        $headers = [];
+        $standardHeaders = [
+            'CacheControl' => 'cache-control',
+            'ContentDisposition' => 'content-disposition',
+            'ContentEncoding' => 'content-encoding',
+            'ContentLanguage' => 'content-language',
+            'ContentType' => 'content-type',
+            'Expires' => 'expires',
+        ];
+
+        foreach ($standardHeaders as $name => $header) {
+            if (isset($metadata[$name]) && $metadata[$name] !== '') {
+                $headers[$header] = (string) $metadata[$name];
+            }
+        }
+
+        foreach ((array) ($metadata['Metadata'] ?? []) as $name => $value) {
+            $headers['x-amz-meta-' . strtolower((string) $name)] = (string) $value;
+        }
+
+        return $headers;
+    }
+
+    /** Convert response headers into metadata accepted by putObject/copyObject. */
+    private function objectMetadata($headers): array
+    {
+        $headers = is_object($headers) && method_exists($headers, 'getAll')
+            ? $headers->getAll()
+            : (array) $headers;
+        $headers = array_change_key_case($headers, CASE_LOWER);
+        $metadata = [];
+        $standardMetadata = [
+            'cache-control' => 'CacheControl',
+            'content-disposition' => 'ContentDisposition',
+            'content-encoding' => 'ContentEncoding',
+            'content-language' => 'ContentLanguage',
+            'content-type' => 'ContentType',
+            'expires' => 'Expires',
+        ];
+
+        foreach ($standardMetadata as $header => $name) {
+            if (isset($headers[$header]) && $headers[$header] !== '') {
+                $metadata[$name] = (string) $headers[$header];
+            }
+        }
+
+        foreach ($headers as $name => $value) {
+            if (str_starts_with($name, 'x-amz-meta-')) {
+                $metadata['Metadata'][substr($name, 11)] = (string) $value;
+            }
+        }
+
+        return $metadata;
     }
 
     /**
