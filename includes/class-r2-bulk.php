@@ -54,8 +54,13 @@ class R2_Bulk
 			wp_send_json_error('R2 is not configured');
 		}
 
-		$ids = $this->getPendingIds();
-		wp_send_json_success(['ids' => $ids, 'total' => count($ids)]);
+		$reoffload = !empty($_POST['reoffload']);
+		$ids = $reoffload ? $this->getUploadedIds() : $this->getPendingIds();
+		wp_send_json_success([
+			'ids' => $ids,
+			'total' => count($ids),
+			'mode' => $reoffload ? 'reoffload' : 'pending',
+		]);
 	}
 
 	public function handlePush(): void

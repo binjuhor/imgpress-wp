@@ -8,28 +8,59 @@
         var done      = 0;
         var failed    = 0;
         var running   = false;
+        var reoffload = false;
 
-        $.post(ImgPressAdmin.ajaxUrl, {
-            action:      'imgpress_r2_bulk_get_ids',
-            _ajax_nonce: ImgPressAdmin.nonce,
-        }, function (res) {
-            if (!res.success) { return; }
-            ids = res.data.ids;
-            $('#ip-r2-pending-count').text(ids.length);
-            if (ids.length > 0) {
-                $('#ip-r2-bulk-btn').prop('disabled', false);
-            } else {
-                $('#ip-r2-bulk-status').text('All media is already offloaded to R2.');
-            }
+        loadOffloadQueue();
+
+        $('#ip-r2-reoffload').on('change', function () {
+            if (running) { return; }
+            reoffload = this.checked;
+            loadOffloadQueue();
         });
+
+        function loadOffloadQueue() {
+            ids = [];
+            $('#ip-r2-bulk-btn').prop('disabled', true);
+            $('#ip-r2-pending-count').text('…');
+            $('#ip-r2-bulk-status').text('Loading…');
+
+            $.post(ImgPressAdmin.ajaxUrl, {
+                action:      'imgpress_r2_bulk_get_ids',
+                _ajax_nonce: ImgPressAdmin.nonce,
+                reoffload:   reoffload ? 1 : 0,
+            }, function (res) {
+                if (!res.success) {
+                    $('#ip-r2-bulk-status').text('Could not load media files.');
+                    return;
+                }
+
+                ids = res.data.ids;
+                $('#ip-r2-pending-count').text(ids.length);
+                $('#ip-r2-bulk-btn')
+                    .prop('disabled', ids.length === 0)
+                    .text(reoffload ? 'Start Re-offload' : 'Start Bulk Offload');
+                $('#ip-r2-bulk-status').text(
+                    ids.length > 0
+                        ? (reoffload ? ids.length + ' previously offloaded file(s) ready.' : '')
+                        : (reoffload ? 'No previously offloaded media found.' : 'All media is already offloaded to R2.')
+                );
+            }).fail(function () {
+                $('#ip-r2-pending-count').text('—');
+                $('#ip-r2-bulk-status').text('Could not load media files.');
+            });
+        }
 
         $('#ip-r2-bulk-btn').on('click', function () {
             if (running) { return; }
+            if (reoffload && !window.confirm('Re-upload all previously offloaded files from local storage to R2?')) {
+                return;
+            }
             running = true;
             done    = 0;
             failed  = 0;
 
             $(this).prop('disabled', true).text('Running…');
+            $('#ip-r2-reoffload').prop('disabled', true);
             $('#ip-r2-progress-wrap').show();
             $('#ip-r2-results-card').show();
             $('#ip-r2-results-tbody').empty();
@@ -107,7 +138,8 @@
             running = false;
             $('#ip-r2-progress-bar').css('width', '100%');
             $('#ip-r2-progress-label').text('Done — ' + done + ' uploaded, ' + failed + ' failed.');
-            $('#ip-r2-bulk-btn').prop('disabled', false).text('Run Again');
+			$('#ip-r2-reoffload').prop('disabled', false);
+			$('#ip-r2-bulk-btn').prop('disabled', false).text(reoffload ? 'Re-offload Again' : 'Run Again');
             $('#ip-r2-bulk-status').text('');
         }
     }

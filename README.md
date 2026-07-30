@@ -82,6 +82,8 @@ In the media library list view, select one or more attachments, choose an ImgPre
 
 The **⚡ ImgPress** column shows optimization and R2 status. Compact text buttons remain available for individual actions. Use the bulk actions for processing multiple attachments.
 
+On **ImgPress → R2 Offload**, enable **Re-offload files already uploaded to R2** to upload local copies again and refresh their R2 metadata, including the configured Cache-Control policy. Attachments without local copies fail safely without removing their existing R2 objects.
+
 ### Bulk compression
 
 Go to **Media → Bulk Compress**. The page shows how many files are pending, then lets you start a batch run that processes each file sequentially and displays a live progress bar and results table.

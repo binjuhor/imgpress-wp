@@ -51,6 +51,15 @@
 			</button>
 			<span id="ip-r2-bulk-status" style="margin-left:12px;color:#646970;font-size:13px"></span>
 		</p>
+		<p>
+			<label for="ip-r2-reoffload">
+				<input type="checkbox" id="ip-r2-reoffload" />
+				<strong><?php esc_html_e('Re-offload files already uploaded to R2', 'imgpress-wp'); ?></strong>
+			</label>
+		</p>
+		<p class="description">
+			<?php esc_html_e('Uploads the local files again and refreshes their R2 metadata, including Cache-Control. Files without a local copy will fail safely and keep their existing R2 objects.', 'imgpress-wp'); ?>
+		</p>
 	</div>
 
 	<div class="card" style="max-width:800px;margin-top:16px;padding:20px 24px">

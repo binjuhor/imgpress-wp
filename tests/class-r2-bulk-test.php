@@ -326,6 +326,7 @@ class TestR2Bulk {
 
 		// Simulate AJAX call
 		$_POST['_ajax_nonce'] = 'test_nonce';
+		unset($_POST['reoffload']);
 		$r2Bulk = new ImgPress\R2_Bulk($this->r2Uploader, $this->settings);
 		$r2Bulk->handleGetIds();
 
@@ -335,6 +336,29 @@ class TestR2Bulk {
 		$this->assert(count($test_results['ajax_response']['data']['ids']) === 1, "Should return 1 pending ID");
 
 		return "✓ testHandleGetIds passed";
+	}
+
+	public function testHandleGetReoffloadIds() {
+		global $mockAttachments, $mockMeta, $test_results;
+		$mockAttachments = [
+			1 => ['file' => '/var/www/html/wp-content/uploads/2026/01/uploaded.jpg', 'mime' => 'image/jpeg', 'title' => 'Uploaded', 'metadata' => []],
+			2 => ['file' => '/var/www/html/wp-content/uploads/2026/01/pending.jpg', 'mime' => 'image/jpeg', 'title' => 'Pending', 'metadata' => []],
+		];
+		$mockMeta = [
+			1 => ['_imgpress_r2' => ['status' => 'uploaded', 'key' => '2026/01/uploaded.jpg']],
+		];
+		$test_results = [];
+		$_POST['_ajax_nonce'] = 'test_nonce';
+		$_POST['reoffload'] = '1';
+
+		$r2Bulk = new ImgPress\R2_Bulk($this->r2Uploader, $this->settings);
+		$r2Bulk->handleGetIds();
+
+		$this->assert($test_results['ajax_response']['data']['ids'] === [1], 'Only uploaded attachments should be queued');
+		$this->assert($test_results['ajax_response']['data']['mode'] === 'reoffload', 'Response mode should be reoffload');
+		unset($_POST['reoffload']);
+
+		return "✓ testHandleGetReoffloadIds passed";
 	}
 
 	public function testHandlePush() {
@@ -443,6 +467,7 @@ class TestR2Bulk {
 		$tests = [
 			'testGetPendingIds',
 			'testHandleGetIds',
+			'testHandleGetReoffloadIds',
 			'testHandlePush',
 			'testUploaderUpload',
 			'testResumable',
