@@ -8,7 +8,7 @@ class Page_Cache
 {
     private ?string $pendingFile = null;
     private ?string $pendingMetaFile = null;
-    private int $startedAt = 0;
+    private float $startedAt = 0.0;
 
     public function __construct(private Settings $settings, private Logger $logger)
     {
