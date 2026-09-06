@@ -15,7 +15,7 @@ class Auto_Compress
     ) {
         add_filter('wp_handle_upload', [$this, 'handleUpload']);
         add_action('add_attachment', [$this, 'handleAddAttachment']);
-        add_filter('wp_update_attachment_metadata', [$this, 'handleGeneratedMetadata'], 10, 2);
+        add_filter('wp_generate_attachment_metadata', [$this, 'handleGeneratedMetadata'], 10, 3);
     }
 
     /**
@@ -70,10 +70,21 @@ class Auto_Compress
     }
 
     /**
-     * For images, wait until WordPress has generated metadata from the original
-     * upload. Then replace it with the converted file and return fresh metadata.
+     * For images, wait until WordPress has finished generating metadata from the
+     * original upload. Then replace it with the converted file and return fresh
+     * metadata so the caller persists the converted file's sub-sizes.
+     *
+     * We intentionally hook `wp_generate_attachment_metadata` (which fires once the
+     * full metadata tree has been produced for this upload) instead of
+     * `wp_update_attachment_metadata`. WordPress calls `wp_update_attachment_metadata`
+     * *while* it is still creating sub-sizes (wp_create_image_subsizes()/
+     * _wp_make_subsizes() persist progress after every size). Compressing there would
+     * delete the original upload file while WordPress still holds it open and is about
+     * to generate more sizes from it, which leaves the attachment with no thumbnail
+     * metadata. By the time `wp_generate_attachment_metadata` runs, all sub-sizes from
+     * the original file already exist, so it is safe to convert and regenerate.
      */
-    public function handleGeneratedMetadata(array $metadata, int $attachmentId): array
+    public function handleGeneratedMetadata(array $metadata, int $attachmentId, string $context = 'create'): array
     {
         if ($this->compressing) {
             return $metadata;
