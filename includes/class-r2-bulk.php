@@ -268,12 +268,37 @@ class R2_Bulk
 			'fields'         => 'ids',
 		]);
 
-		return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
-			$status = $this->uploader->getStatus($id);
+        return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
+            return !$this->isFullyOffloaded($id);
+        }));
+    }
 
-			return !is_array($status) || ($status['status'] ?? '') !== 'uploaded';
-		}));
-	}
+    /**
+     * An attachment is fully offloaded only when every sub-size recorded in its
+     * metadata also has an R2 object. A status of "uploaded" alone is not enough:
+     * an upload can succeed for the main file while sub-sizes are added later
+     * (for example by client-side media processing), leaving metadata that points
+     * at files R2 never received.
+     */
+    private function isFullyOffloaded(int $attachmentId): bool
+    {
+        $status = $this->uploader->getStatus($attachmentId);
+
+        if (!is_array($status) || ($status['status'] ?? '') !== 'uploaded') {
+            return false;
+        }
+
+        $metadata  = wp_get_attachment_metadata($attachmentId);
+        $sizeNames = is_array($metadata) ? array_keys($metadata['sizes'] ?? []) : [];
+
+        if (!$sizeNames) {
+            return true;
+        }
+
+        $uploaded = is_array($status['sizes'] ?? null) ? array_keys($status['sizes']) : [];
+
+        return array_diff($sizeNames, $uploaded) === [];
+    }
 
 	private function getUploadedIds(): array
 	{

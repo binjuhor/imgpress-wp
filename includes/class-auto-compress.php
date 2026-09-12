@@ -16,6 +16,17 @@ class Auto_Compress
         add_filter('wp_handle_upload', [$this, 'handleUpload']);
         add_action('add_attachment', [$this, 'handleAddAttachment']);
         add_filter('wp_generate_attachment_metadata', [$this, 'handleGeneratedMetadata'], 10, 3);
+
+        // WordPress 7.1 can generate image sub-sizes in the browser and sideload
+        // them after the upload request. Those sub-sizes never pass through this
+        // plugin's compression or R2 offload, so the stored metadata points at
+        // files that exist only locally while the URL rewriter sends the
+        // thumbnail request to R2, producing a broken image. When auto-compress
+        // is enabled we need the whole sub-size tree on the server, so opt out of
+        // client-side processing and use the server-side upload flow.
+        if ($this->settings->isAutoCompress()) {
+            add_filter('wp_client_side_media_processing_enabled', '__return_false');
+        }
     }
 
     /**
