@@ -75,7 +75,19 @@ class Dashboard
                     <?php else: ?>
                         <p><?php echo esc_html(sprintf(__('Active cache plugin detected: %s', 'imgpress-wp'), implode(', ', array_values($conflicts)))); ?></p>
                     <?php endif; ?>
-                    <p><?php echo esc_html(sprintf(__('advanced-cache.php: %s', 'imgpress-wp'), Cache_Dropin::isInstalled() ? __('Installed by ImgPress', 'imgpress-wp') : __('Not installed', 'imgpress-wp'))); ?></p>
+                    <p>
+                        <?php
+                        $dropinState = Cache_Dropin::isInstalled() ? __('Installed by ImgPress', 'imgpress-wp') : __('Not installed', 'imgpress-wp');
+                        $wpCacheState = Cache_Dropin::isWpCacheDefined() ? __('WP_CACHE on', 'imgpress-wp') : __('WP_CACHE off', 'imgpress-wp');
+                        $htaccessState = Cache_Htaccess::isInstalled() ? __('htaccess on', 'imgpress-wp') : __('htaccess off', 'imgpress-wp');
+                        echo esc_html(sprintf(
+                            __('Cache layers — advanced-cache.php: %1$s · %2$s · %3$s', 'imgpress-wp'),
+                            $dropinState,
+                            $wpCacheState,
+                            $htaccessState
+                        ));
+                        ?>
+                    </p>
                 </div>
                 <div class="imgpress-card">
                     <h2 class="imgpress-card-title"><span class="dashicons dashicons-editor-code"></span><?php esc_html_e('Asset Cache', 'imgpress-wp'); ?></h2>

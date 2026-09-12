@@ -17,6 +17,90 @@ class Bloat
         add_action('wp_default_scripts', [$this, 'disableJqueryMigrate']);
         add_action('wp_enqueue_scripts', [$this, 'disableFrontendAssets'], 100);
         add_action('init', [$this, 'disableXmlRpc'], 1);
+
+        add_filter('style_loader_src', [$this, 'removeQueryStrings'], 20, 2);
+        add_filter('script_loader_src', [$this, 'removeQueryStrings'], 20, 2);
+        add_filter('style_loader_tag', [$this, 'removeGoogleFontTags'], 20, 4);
+
+        add_action('admin_enqueue_scripts', [$this, 'disableHeartbeatAdmin'], 100);
+    }
+
+    public function removeQueryStrings(string $src, string $handle): string
+    {
+        if (!$this->settings->isBloatDisabled('query_strings')) {
+            return $src;
+        }
+
+        $parts = wp_parse_url($src);
+        if (empty($parts['query'])) {
+            return $src;
+        }
+
+        parse_str($parts['query'], $query);
+        unset($query['ver']);
+        if (empty($query)) {
+            return strtok($src, '?');
+        }
+
+        if (empty($parts['host']) || empty($parts['scheme'])) {
+            $base = strtok($src, '?');
+            return $base !== false ? $base . '?' . http_build_query($query) : $src;
+        }
+
+        return $parts['scheme'] . '://' . $parts['host'] . ($parts['path'] ?? '') . '?' . http_build_query($query);
+    }
+
+    public function removeGoogleFontTags(string $tag, string $handle, string $href, string $media): string
+    {
+        if (!$this->settings->isBloatDisabled('google_fonts')) {
+            return $tag;
+        }
+
+        if (str_contains($href, 'fonts.googleapis.com')) {
+            return '';
+        }
+
+        return $tag;
+    }
+
+    public function disableHeartbeatAdmin(string $hook): void
+    {
+        if (!$this->settings->isBloatDisabled('heartbeat')) {
+            return;
+        }
+
+        // Keep heartbeat on post-editing screens (autosave relies on it).
+        if (in_array($hook, ['post.php', 'post-new.php', 'site-editor.php'], true)) {
+            return;
+        }
+
+        wp_deregister_script('heartbeat');
+    }
+
+    public function disableHeartbeatFrontend(): void
+    {
+        if (!$this->settings->isBloatDisabled('heartbeat')) {
+            return;
+        }
+
+        wp_dequeue_script('heartbeat');
+    }
+
+    public function disableWooCartFragments(): void
+    {
+        if (!$this->settings->isBloatDisabled('woo_cart_fragments')) {
+            return;
+        }
+
+        if (!class_exists('WooCommerce') || !function_exists('is_cart')) {
+            return;
+        }
+
+        if (is_cart() || is_checkout() || is_account_page()) {
+            return;
+        }
+
+        wp_dequeue_script('wc-cart-fragments');
     }
 
     public function disableEmojis(): void
@@ -66,6 +150,9 @@ class Bloat
             remove_action('wp_head', 'wp_oembed_add_discovery_links');
             remove_action('wp_head', 'wp_oembed_add_host_js');
         }
+
+        $this->disableWooCartFragments();
+        $this->disableHeartbeatFrontend();
     }
 
     public function disableXmlRpc(): void

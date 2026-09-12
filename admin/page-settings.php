@@ -47,6 +47,10 @@
     $bloatDashicons = !empty($opts['bloat_disable_dashicons']);
     $bloatXmlRpc = !empty($opts['bloat_disable_xml_rpc']);
     $bloatRssFeed = !empty($opts['bloat_disable_rss_feed']);
+    $bloatQueryStrings = !empty($opts['bloat_disable_query_strings']);
+    $bloatWooCartFragments = !empty($opts['bloat_disable_woo_cart_fragments']);
+    $bloatHeartbeat = !empty($opts['bloat_disable_heartbeat']);
+    $bloatGoogleFonts = !empty($opts['bloat_disable_google_fonts']);
     ?>
 
     <div class="imgpress-settings-layout">
@@ -70,7 +74,7 @@
             </button>
             <button class="imgpress-tab-button" data-tab="assets" role="tab" aria-controls="assets" aria-selected="false">
                 <span class="dashicons dashicons-editor-code"></span>
-                <span><?php esc_html_e('CSS / JS', 'imgpress-wp'); ?></span>
+                <span><?php esc_html_e('CSS / JS / Media', 'imgpress-wp'); ?></span>
             </button>
             <button class="imgpress-tab-button" data-tab="database" role="tab" aria-controls="database" aria-selected="false">
                 <span class="dashicons dashicons-database"></span>
@@ -571,7 +575,7 @@
                                 name="imgpress_wp_options[cache_lifespan]"
                                 value="<?php echo esc_attr($cacheLifespan); ?>"
                                 class="regular-text"
-                                min="<?php echo esc_attr(MINUTE_IN_SECONDS); ?>"
+                                min="0"
                                 max="<?php echo esc_attr(MONTH_IN_SECONDS); ?>"
                             />
                             <span class="description" style="display:inline;margin-left:4px">
@@ -579,7 +583,7 @@
                             </span>
                             <strong id="ip-cache-lifespan-human" style="display:inline-block;margin-left:8px"></strong>
                             <p class="description">
-                                <?php esc_html_e('Example: 3600 seconds = 1 hour, 86400 seconds = 1 day, 604800 seconds = 7 days.', 'imgpress-wp'); ?>
+                                <?php esc_html_e('Example: 3600 seconds = 1 hour, 86400 seconds = 1 day, 604800 seconds = 7 days. Enter 0 to cache forever until purged.', 'imgpress-wp'); ?>
                             </p>
                         </td>
                     </tr>
@@ -595,11 +599,45 @@
                                 />
                                 <span class="checkbox-label">
                                     <strong><?php esc_html_e('Install ImgPress advanced cache drop-in', 'imgpress-wp'); ?></strong>
-                                    <span class="description"><?php esc_html_e('Only ImgPress-owned drop-ins are overwritten or removed.', 'imgpress-wp'); ?></span>
+                                    <span class="description"><?php esc_html_e('Enables WP_CACHE and serves cached pages before WordPress boots. Only ImgPress-owned drop-ins are overwritten or removed.', 'imgpress-wp'); ?></span>
                                 </span>
                             </label>
                             <p class="description">
-                                <?php echo esc_html(sprintf(__('Status: %s', 'imgpress-wp'), ImgPress\Cache_Dropin::isInstalled() ? __('installed', 'imgpress-wp') : __('not installed', 'imgpress-wp'))); ?>
+                                <?php
+                                $dropinState = ImgPress\Cache_Dropin::isInstalled() ? __('drop-in installed', 'imgpress-wp') : __('drop-in not installed', 'imgpress-wp');
+                                $wpCacheState = ImgPress\Cache_Dropin::isWpCacheDefined() ? __('WP_CACHE on', 'imgpress-wp') : __('WP_CACHE off', 'imgpress-wp');
+                                echo esc_html(sprintf(__('Status: %1$s · %2$s', 'imgpress-wp'), $dropinState, $wpCacheState));
+                                ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('.htaccess rules', 'imgpress-wp'); ?></th>
+                        <td>
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[cache_htaccess]"
+                                    value="1"
+                                    <?php checked(!empty($opts['cache_htaccess'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Install Apache .htaccess rules', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Adds deflate/expires headers and (in never-expire mode) direct web-server page serving. Requires Apache with a writable root .htaccess.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                            <p class="description">
+                                <?php echo esc_html(sprintf(__('Status: %s', 'imgpress-wp'), ImgPress\Cache_Htaccess::isInstalled() ? __('installed', 'imgpress-wp') : __('not installed', 'imgpress-wp'))); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Quick Actions', 'imgpress-wp'); ?></th>
+                        <td>
+                            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=imgpress_purge_cache'), 'imgpress_purge_cache')); ?>"><?php esc_html_e('Purge cache now', 'imgpress-wp'); ?></a>
+                            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=imgpress_preload_cache'), 'imgpress_preload_cache')); ?>"><?php esc_html_e('Purge & preload', 'imgpress-wp'); ?></a>
+                            <p class="description">
+                                <?php esc_html_e('Purge clears cached pages immediately. Preload rewarms the site URL inventory in the background.', 'imgpress-wp'); ?>
                             </p>
                         </td>
                     </tr>
@@ -860,6 +898,22 @@
                         </td>
                     </tr>
                     <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <label for="ip_js_delay_all_excludes"><?php esc_html_e('Delay fallback timeout (ms)', 'imgpress-wp'); ?></label>
+                            <input
+                                type="number"
+                                id="ip_js_delay_timeout"
+                                name="imgpress_wp_options[optimize_js_delay_timeout]"
+                                value="<?php echo esc_attr((int) ($opts['optimize_js_delay_timeout'] ?? 3500)); ?>"
+                                min="0"
+                                max="60000"
+                                step="500"
+                                style="width:110px;margin-left:8px"
+                            />
+                            <p class="description"><?php esc_html_e('Delayed scripts load after this many ms if no interaction happens first. 0 disables the fallback (interaction only).', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
                         <td style="padding:12px 0;border-top:1px solid #ddd">
                             <label class="imgpress-checkbox">
                                 <input
@@ -896,6 +950,93 @@
                                 class="large-text code"
                             ><?php echo esc_textarea($optimizeExcludedAssets); ?></textarea>
                             <p class="description"><?php esc_html_e('One URL fragment, filename, handle keyword, or folder path per line.', 'imgpress-wp'); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="imgpress-card">
+                <h2 class="imgpress-card-title">
+                    <span class="dashicons dashicons-format-image"></span>
+                    <?php esc_html_e('Media & Fonts Optimization', 'imgpress-wp'); ?>
+                </h2>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <td style="padding:12px 0">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_fonts_swap]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_fonts_swap'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Optimize Google Fonts', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Adds display=swap to Google Fonts stylesheets and injects font preconnect hints.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_img_lazyload]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_img_lazyload'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Lazy load images', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Adds native loading=lazy below the fold and fetchpriority=high to the first image.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <label for="ip_img_lazyload_above_fold"><?php esc_html_e('Skip lazy load for the first N images', 'imgpress-wp'); ?></label>
+                            <input
+                                type="number"
+                                id="ip_img_lazyload_above_fold"
+                                name="imgpress_wp_options[optimize_img_lazyload_above_fold]"
+                                value="<?php echo esc_attr((int) ($opts['optimize_img_lazyload_above_fold'] ?? 2)); ?>"
+                                min="0"
+                                max="30"
+                                style="width:80px;margin-left:8px"
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;padding-left:28px;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_img_add_dimensions]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_img_add_dimensions'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Add missing width & height', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Reads local image dimensions so the browser reserves layout space (fewer layout shifts).', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input
+                                    type="checkbox"
+                                    name="imgpress_wp_options[optimize_iframe_lazyload]"
+                                    value="1"
+                                    <?php checked(!empty($opts['optimize_iframe_lazyload'])); ?>
+                                />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Lazy load iframes', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Adds native loading=lazy to embeds (YouTube, maps, widgets).', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
                         </td>
                     </tr>
                 </table>
@@ -1129,6 +1270,50 @@
                                 <span class="checkbox-label">
                                     <strong><?php esc_html_e('Disable RSS Feeds', 'imgpress-wp'); ?></strong>
                                     <span class="description"><?php esc_html_e('Returns a 404 for RSS and Atom feed requests.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_query_strings]" value="1" <?php checked($bloatQueryStrings); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Remove query strings from static assets', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Strips ?ver= from CSS/JS URLs so proxies can cache them.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_woo_cart_fragments]" value="1" <?php checked($bloatWooCartFragments); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable WooCommerce cart fragments', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes the cart-fragments script on non-cart pages (kept on cart, checkout, account).', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_heartbeat]" value="1" <?php checked($bloatHeartbeat); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Disable Heartbeat API', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Stops the admin heartbeat polling except on post-editing screens.', 'imgpress-wp'); ?></span>
+                                </span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px 0;border-top:1px solid #ddd">
+                            <label class="imgpress-checkbox">
+                                <input type="checkbox" name="imgpress_wp_options[bloat_disable_google_fonts]" value="1" <?php checked($bloatGoogleFonts); ?> />
+                                <span class="checkbox-label">
+                                    <strong><?php esc_html_e('Remove Google Fonts', 'imgpress-wp'); ?></strong>
+                                    <span class="description"><?php esc_html_e('Removes enqueued Google Fonts stylesheets from the front end.', 'imgpress-wp'); ?></span>
                                 </span>
                             </label>
                         </td>

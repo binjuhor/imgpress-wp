@@ -123,8 +123,9 @@ class Settings
             'r2_rewrite_content'  => !empty($input['r2_rewrite_content']),
             'r2_cache_control'    => $this->sanitizeCacheControl($input['r2_cache_control'] ?? ''),
             'cache_enabled'            => !empty($input['cache_enabled']),
-            'cache_lifespan'           => max(MINUTE_IN_SECONDS, min(MONTH_IN_SECONDS, (int) ($input['cache_lifespan'] ?? DAY_IN_SECONDS))),
+            'cache_lifespan'           => max(0, min(MONTH_IN_SECONDS, (int) ($input['cache_lifespan'] ?? DAY_IN_SECONDS))),
             'cache_advanced_dropin'    => !empty($input['cache_advanced_dropin']),
+            'cache_htaccess'           => !empty($input['cache_htaccess']),
             'cache_preload'            => !empty($input['cache_preload']),
             'cache_logged_in'          => !empty($input['cache_logged_in']),
             'cache_mobile_separate'    => !empty($input['cache_mobile_separate']),
@@ -147,6 +148,12 @@ class Settings
                 : 'selected',
             'optimize_js_delay_all_excludes' => $this->sanitizeTextarea($input['optimize_js_delay_all_excludes'] ?? ''),
             'optimize_js_delay_selected' => $this->sanitizeTextarea($input['optimize_js_delay_selected'] ?? ''),
+            'optimize_js_delay_timeout' => max(0, min(60000, (int) ($input['optimize_js_delay_timeout'] ?? 3500))),
+            'optimize_fonts_swap' => !empty($input['optimize_fonts_swap']),
+            'optimize_img_lazyload' => !empty($input['optimize_img_lazyload']),
+            'optimize_img_lazyload_above_fold' => max(0, min(30, (int) ($input['optimize_img_lazyload_above_fold'] ?? 2))),
+            'optimize_img_add_dimensions' => !empty($input['optimize_img_add_dimensions']),
+            'optimize_iframe_lazyload' => !empty($input['optimize_iframe_lazyload']),
             'optimize_html_minify'     => !empty($input['optimize_html_minify']),
             'optimize_excluded_assets' => $this->sanitizeTextarea($input['optimize_excluded_assets'] ?? ''),
             'db_cleanup_enabled' => !empty($input['db_cleanup_enabled']),
@@ -170,6 +177,10 @@ class Settings
             'bloat_disable_dashicons' => !empty($input['bloat_disable_dashicons']),
             'bloat_disable_xml_rpc' => !empty($input['bloat_disable_xml_rpc']),
             'bloat_disable_rss_feed' => !empty($input['bloat_disable_rss_feed']),
+            'bloat_disable_query_strings' => !empty($input['bloat_disable_query_strings']),
+            'bloat_disable_woo_cart_fragments' => !empty($input['bloat_disable_woo_cart_fragments']),
+            'bloat_disable_heartbeat' => !empty($input['bloat_disable_heartbeat']),
+            'bloat_disable_google_fonts' => !empty($input['bloat_disable_google_fonts']),
         ];
     }
 
@@ -177,16 +188,24 @@ class Settings
     {
         $this->options = array_merge(Config::defaults(), $newValue);
 
-        $shouldInstallDropin = !empty($newValue['cache_enabled']) && !empty($newValue['cache_advanced_dropin']);
-        $success = $shouldInstallDropin ? Cache_Dropin::install() : Cache_Dropin::remove();
+        $cacheActive = !empty($newValue['cache_enabled']);
 
-        if (!$success) {
-            add_settings_error(
-                self::OPTION_KEY,
-                'imgpress_cache_dropin',
-                __('ImgPress could not update advanced-cache.php. Another plugin may own the file or wp-content may not be writable.', 'imgpress-wp'),
-                'warning'
-            );
+        // advanced-cache.php drop-in (WP_CACHE early exit).
+        $dropinWanted = $cacheActive && !empty($newValue['cache_advanced_dropin']);
+        $dropinOk = $dropinWanted ? Cache_Dropin::install() : Cache_Dropin::remove();
+
+        if (!$dropinOk) {
+            $message = Cache_Dropin::lastError() ?: __('ImgPress could not update advanced-cache.php. Another plugin may own the file, wp-content may not be writable, or WP_CACHE could not be defined.', 'imgpress-wp');
+            add_settings_error(self::OPTION_KEY, 'imgpress_cache_dropin', $message, 'warning');
+        }
+
+        // Optional Apache htaccess rules (browser cache + direct serve).
+        $htaccessWanted = $cacheActive && !empty($newValue['cache_htaccess']);
+        $htaccessOk = $htaccessWanted ? Cache_Htaccess::install() : Cache_Htaccess::remove();
+
+        if (!$htaccessOk) {
+            $message = Cache_Htaccess::lastError() ?: __('ImgPress could not update .htaccess. The file may be missing or read-only, or another plugin owns the ImgPress block.', 'imgpress-wp');
+            add_settings_error(self::OPTION_KEY, 'imgpress_cache_htaccess', $message, 'warning');
         }
     }
 
@@ -443,12 +462,17 @@ class Settings
 
     public function getCacheLifespan(): int
     {
-        return max(MINUTE_IN_SECONDS, (int) ($this->options['cache_lifespan'] ?? DAY_IN_SECONDS));
+        return max(0, (int) ($this->options['cache_lifespan'] ?? DAY_IN_SECONDS));
     }
 
     public function isCacheAdvancedDropinEnabled(): bool
     {
         return (bool) ($this->options['cache_advanced_dropin'] ?? false);
+    }
+
+    public function isCacheHtaccessEnabled(): bool
+    {
+        return (bool) ($this->options['cache_htaccess'] ?? false);
     }
 
     public function isCachePreloadEnabled(): bool
@@ -544,6 +568,36 @@ class Settings
     public function isHtmlMinifyEnabled(): bool
     {
         return (bool) ($this->options['optimize_html_minify'] ?? false);
+    }
+
+    public function isFontSwapEnabled(): bool
+    {
+        return (bool) ($this->options['optimize_fonts_swap'] ?? false);
+    }
+
+    public function isImgLazyloadEnabled(): bool
+    {
+        return (bool) ($this->options['optimize_img_lazyload'] ?? false);
+    }
+
+    public function getImgLazyloadAboveFold(): int
+    {
+        return max(0, (int) ($this->options['optimize_img_lazyload_above_fold'] ?? 2));
+    }
+
+    public function isImgAddDimensionsEnabled(): bool
+    {
+        return (bool) ($this->options['optimize_img_add_dimensions'] ?? false);
+    }
+
+    public function isIframeLazyloadEnabled(): bool
+    {
+        return (bool) ($this->options['optimize_iframe_lazyload'] ?? false);
+    }
+
+    public function getJsDelayTimeout(): int
+    {
+        return max(0, (int) ($this->options['optimize_js_delay_timeout'] ?? 3500));
     }
 
     public function getOptimizeExcludedAssets(): array

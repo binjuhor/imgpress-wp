@@ -325,19 +325,5 @@ class R2_Bulk
 			'nonce'   => wp_create_nonce('imgpress_r2_bulk'),
 			'cleanupNonce' => wp_create_nonce('imgpress_r2_cleanup'),
 		]);
-
-		wp_enqueue_script(
-			'imgpress-admin',
-			IMGPRESS_WP_URL . 'assets/admin.js',
-			['jquery'],
-			IMGPRESS_WP_VERSION,
-			true
-		);
-
-		wp_localize_script('imgpress-admin', 'ImgPressMediaAdmin', [
-			'ajaxUrl'   => admin_url('admin-ajax.php'),
-			'nonce'     => wp_create_nonce('imgpress_r2_bulk'),
-			'r2Nonce'   => wp_create_nonce('imgpress_r2'),
-		]);
 	}
 }

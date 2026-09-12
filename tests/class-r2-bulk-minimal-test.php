@@ -106,7 +106,7 @@ foreach ($requiredElements as $id => $desc) {
 
 // Test 8: Verify admin.js has R2 bulk handler
 echo "Test 8: admin.js R2 bulk handler\n";
-$jsContent = file_get_contents(IMGPRESS_WP_DIR . 'assets/admin.js');
+$jsContent = file_get_contents(IMGPRESS_WP_DIR . 'assets/js/r2-bulk.js');
 
 $requiredJsElements = [
 	'processNextR2'   => 'processNextR2 function',

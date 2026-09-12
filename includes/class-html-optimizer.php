@@ -34,6 +34,9 @@ class Html_Optimizer
             return $html;
         }
 
+        $html = $this->maybeOptimizeFonts($html);
+        $html = $this->maybeOptimizeImages($html);
+        $html = $this->maybeOptimizeIframes($html);
         $html = $this->maybeRemoveUnusedCss($html);
         $html = $this->maybeOptimizeScripts($html);
 
@@ -49,7 +52,133 @@ class Html_Optimizer
         return $this->settings->isHtmlMinifyEnabled()
             || $this->settings->isRemoveUnusedCssEnabled()
             || $this->settings->isJsDeferEnabled()
-            || $this->settings->isJsDelayEnabled();
+            || $this->settings->isJsDelayEnabled()
+            || $this->settings->isFontSwapEnabled()
+            || $this->settings->isImgLazyloadEnabled()
+            || $this->settings->isImgAddDimensionsEnabled()
+            || $this->settings->isIframeLazyloadEnabled();
+    }
+
+    private function maybeOptimizeFonts(string $html): string
+    {
+        if (!$this->settings->isFontSwapEnabled()) {
+            return $html;
+        }
+
+        if (!preg_match_all('/<link\b[^>]*>/i', $html, $matches)) {
+            return $html;
+        }
+
+        $foundGoogle = false;
+        foreach ($matches[0] as $tag) {
+            $attrs = $this->parseTag($tag);
+            $href = (string) ($attrs['href'] ?? '');
+            $rel = (string) ($attrs['rel'] ?? '');
+            if ($rel !== 'stylesheet' || !str_contains($href, 'fonts.googleapis.com')) {
+                continue;
+            }
+
+            $parts = wp_parse_url($href);
+            $query = [];
+            if (!empty($parts['query'])) {
+                parse_str($parts['query'], $query);
+            }
+            if (!empty($query['display']) && strtolower((string) $query['display']) === 'swap') {
+                $foundGoogle = true;
+                continue;
+            }
+
+            $query['display'] = 'swap';
+            $href = ($parts['scheme'] ?? 'https') . '://' . ($parts['host'] ?? 'fonts.googleapis.com') . ($parts['path'] ?? '/css')
+                . '?' . http_build_query($query, '', '&');
+            $attrs['href'] = $href;
+            $html = str_replace($tag, $this->buildTag('link', $attrs), $html);
+            $foundGoogle = true;
+        }
+
+        if ($foundGoogle && strpos($html, 'imgpress-gfonts-preconnect') === false) {
+            $preconnects = '<link rel="preconnect" class="imgpress-gfonts-preconnect" href="https://fonts.googleapis.com" crossorigin>'
+                . '<link rel="preconnect" class="imgpress-gfonts-preconnect" href="https://fonts.gstatic.com" crossorigin>';
+            if (preg_match('/<head\b[^>]*>/i', $html, $headMatch)) {
+                $html = str_replace($headMatch[0], $headMatch[0] . $preconnects, $html);
+            }
+        }
+
+        return $html;
+    }
+
+    private function maybeOptimizeImages(string $html): string
+    {
+        $lazyload = $this->settings->isImgLazyloadEnabled();
+        $dimensions = $this->settings->isImgAddDimensionsEnabled();
+        if (!$lazyload && !$dimensions) {
+            return $html;
+        }
+
+        $aboveFold = $this->settings->getImgLazyloadAboveFold();
+        $index = 0;
+
+        return (string) preg_replace_callback('/<img\b[^>]*>/i', function (array $match) use ($lazyload, $dimensions, $aboveFold, &$index): string {
+            $tag = $match[0];
+            $attrs = $this->parseTag($tag);
+            $src = (string) ($attrs['src'] ?? '');
+
+            if ($src === '' || str_starts_with($src, 'data:')) {
+                return $tag;
+            }
+
+            $index++;
+            $aboveTheFold = $index <= $aboveFold;
+
+            if ($lazyload) {
+                if (empty($attrs['loading']) && !$aboveTheFold) {
+                    $attrs['loading'] = 'lazy';
+                }
+                if (empty($attrs['decoding'])) {
+                    $attrs['decoding'] = 'async';
+                }
+                if ($index === 1 && empty($attrs['fetchpriority'])) {
+                    $attrs['fetchpriority'] = 'high';
+                }
+            }
+
+            if ($dimensions && empty($attrs['width']) && empty($attrs['height']) && !str_contains($src, '.svg')) {
+                $local = $this->localPathFromUrl($src);
+                if ($local !== '' && is_file($local) && function_exists('getimagesize')) {
+                    $size = @getimagesize($local);
+                    if (is_array($size) && !empty($size[0]) && !empty($size[1])) {
+                        $attrs['width'] = (int) $size[0];
+                        $attrs['height'] = (int) $size[1];
+                    }
+                }
+            }
+
+            $built = $this->buildTag('img', $attrs);
+            return $built !== '<img>' ? $built : $tag;
+        }, $html) ?: $html;
+    }
+
+    private function maybeOptimizeIframes(string $html): string
+    {
+        if (!$this->settings->isIframeLazyloadEnabled()) {
+            return $html;
+        }
+
+        return (string) preg_replace_callback('/<iframe\b[^>]*>/i', function (array $match): string {
+            $tag = $match[0];
+            $attrs = $this->parseTag($tag);
+            $src = (string) ($attrs['src'] ?? '');
+
+            if ($src === '' || str_starts_with($src, 'data:') || str_starts_with($src, 'about:')) {
+                return $tag;
+            }
+
+            if (empty($attrs['loading'])) {
+                $attrs['loading'] = 'lazy';
+            }
+
+            return $this->buildTag('iframe', $attrs);
+        }, $html) ?: $html;
     }
 
     private function maybeRemoveUnusedCss(string $html): string
@@ -153,11 +282,12 @@ class Html_Optimizer
                 continue;
             }
 
-            if (!empty($script['type']) && $script['type'] !== 'text/javascript' && $script['type'] !== 'application/javascript') {
+            if (($script['type'] ?? '') === 'module') {
                 continue;
             }
 
-            if (($script['type'] ?? '') === 'module') {
+            if (!empty($script['type'])
+                && !in_array($script['type'], ['text/javascript', 'application/javascript'], true)) {
                 continue;
             }
 
@@ -168,7 +298,10 @@ class Html_Optimizer
                 continue;
             }
 
-            if ($hasDefer && !empty($script['src']) && !$this->matchesAnyKeyword($scriptTag, $deferExcludes)) {
+            if ($hasDefer && !empty($script['src'])
+                && empty($script['defer'])
+                && empty($script['async'])
+                && !$this->matchesAnyKeyword($scriptTag, $deferExcludes)) {
                 $replacement = $this->makeDeferredScript($scriptTag, $script);
                 $html = str_replace($scriptTag, $replacement, $html);
             }
@@ -214,6 +347,7 @@ class Html_Optimizer
 
     private function injectDelayLoader(string $html): string
     {
+        $timeoutMs = max(0, (int) $this->settings->getJsDelayTimeout());
         $loader = <<<'JS'
 <script id="imgpress-delay-loader">
 (function () {
@@ -239,12 +373,17 @@ class Html_Optimizer
       tag.parentNode.replaceChild(script, tag);
     });
   }
-  ['mousemove', 'touchstart', 'keydown', 'scroll', 'click', 'DOMContentLoaded'].forEach(function (eventName) {
+  ['mousemove', 'touchstart', 'keydown', 'scroll', 'click'].forEach(function (eventName) {
     window.addEventListener(eventName, loadDelayedScripts, { once: true, passive: true });
   });
+  var timeout = __IMGPRESS_DELAY_TIMEOUT__;
+  if (timeout > 0) {
+    setTimeout(loadDelayedScripts, timeout);
+  }
 })();
 </script>
 JS;
+        $loader = str_replace('__IMGPRESS_DELAY_TIMEOUT__', (string) $timeoutMs, $loader);
 
         return str_replace('</body>', $loader . '</body>', $html);
     }
@@ -266,9 +405,10 @@ JS;
       link.removeAttribute('data-href');
     });
   }
-  ['mousemove', 'touchstart', 'keydown', 'scroll', 'click', 'DOMContentLoaded'].forEach(function (eventName) {
+  ['mousemove', 'touchstart', 'keydown', 'scroll', 'click'].forEach(function (eventName) {
     window.addEventListener(eventName, loadStylesheets, { once: true, passive: true });
   });
+  setTimeout(loadStylesheets, 5000);
 })();
 </script>
 JS;

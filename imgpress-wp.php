@@ -12,7 +12,7 @@
 
 defined('ABSPATH') || exit;
 
-defined('IMGPRESS_WP_VERSION') || define('IMGPRESS_WP_VERSION', '1.2.9');
+defined('IMGPRESS_WP_VERSION') || define('IMGPRESS_WP_VERSION', '1.2.10');
 defined('IMGPRESS_WP_DIR')     || define('IMGPRESS_WP_DIR', plugin_dir_path(__FILE__));
 defined('IMGPRESS_WP_URL')     || define('IMGPRESS_WP_URL', plugin_dir_url(__FILE__));
 
@@ -69,6 +69,9 @@ add_action('plugins_loaded', function (): void {
     new ImgPress\R2_Bulk($r2Uploader, $settings);
     new ImgPress\R2_URL_Rewriter($settings);
     new ImgPress\Dashboard($settings, $logger, $pageCache, $compatibility, $preload, $assetOptimizer);
+
+    $adminBar = new ImgPress\Admin_Bar($pageCache);
+    $adminBar->init();
 
     $jobs->init();
     $compatibility->init();

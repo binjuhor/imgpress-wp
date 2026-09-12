@@ -454,20 +454,5 @@ class Media_Columns
             'r2Nonce' => wp_create_nonce('imgpress_r2'),
             'bulkNonce' => wp_create_nonce('imgpress_media_bulk'),
         ]);
-
-        wp_enqueue_script(
-            'imgpress-admin',
-            IMGPRESS_WP_URL . 'assets/admin.js',
-            ['jquery'],
-            IMGPRESS_WP_VERSION,
-            true
-        );
-
-        wp_localize_script('imgpress-admin', 'ImgPressAdmin', [
-            'ajaxUrl'  => admin_url('admin-ajax.php'),
-            'nonce'    => wp_create_nonce('imgpress_compress_single'),
-            'r2Nonce'  => wp_create_nonce('imgpress_r2'),
-            'bulkNonce' => wp_create_nonce('imgpress_media_bulk'),
-        ]);
     }
 }
