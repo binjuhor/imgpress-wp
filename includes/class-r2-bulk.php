@@ -289,8 +289,21 @@ class R2_Bulk
 			return false;
 		}
 
-		$metadata  = wp_get_attachment_metadata($attachmentId);
-		$sizeNames = is_array($metadata) ? array_keys($metadata['sizes'] ?? []) : [];
+		$metadata = wp_get_attachment_metadata($attachmentId);
+		if (!is_array($metadata)) {
+			return true;
+		}
+
+		// A metadata "file" that disagrees with the attached file means the srcset
+		// full-size candidate points at the pre-conversion extension, so the
+		// attachment is not healthy even when every recorded size is in R2.
+		$attachedFile = get_attached_file($attachmentId);
+		$relative     = $attachedFile ? _wp_relative_upload_path($attachedFile) : '';
+		if ($relative && ($metadata['file'] ?? '') !== $relative) {
+			return false;
+		}
+
+		$sizeNames = array_keys($metadata['sizes'] ?? []);
 
 		if (!$sizeNames) {
 			return true;

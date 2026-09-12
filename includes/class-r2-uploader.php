@@ -39,6 +39,12 @@ class R2_Uploader
 			return false;
 		}
 
+		// Repair a stale metadata "file" left behind when the attached file was
+		// converted after the metadata was written. The srcset builder reads that
+		// value for the full-size candidate, so a mismatch emits a URL with the
+		// pre-conversion extension that does not exist.
+		$this->syncMetadataFile($attachmentId);
+
 		// Collect all files (original + sub-sizes)
 		$files = $this->collectFiles($attachmentId);
 		if (empty($files)) {
@@ -413,6 +419,31 @@ class R2_Uploader
 			[isset($meta['key']) ? (string) $meta['key'] : ''],
 			array_values(is_array($meta['sizes'] ?? null) ? $meta['sizes'] : [])
 		)));
+	}
+
+	/**
+	 * Keep the attachment metadata "file" in sync with the actual attached file.
+	 * They diverge when the file is converted (for example .jpg to .webp) but the
+	 * metadata still names the original. Returns true when a change was written.
+	 */
+	private function syncMetadataFile(int $attachmentId): bool
+	{
+		$attachedFile = get_attached_file($attachmentId);
+		$metadata     = wp_get_attachment_metadata($attachmentId);
+
+		if (!$attachedFile || !is_array($metadata)) {
+			return false;
+		}
+
+		$relative = _wp_relative_upload_path($attachedFile);
+		if (!$relative || ($metadata['file'] ?? '') === $relative) {
+			return false;
+		}
+
+		$metadata['file'] = $relative;
+		wp_update_attachment_metadata($attachmentId, $metadata);
+
+		return true;
 	}
 
 	private function cleanupDownloadedFiles(array $paths): void
