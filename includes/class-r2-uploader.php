@@ -60,6 +60,14 @@ class R2_Uploader
 			}
 
 			if ($data === false || $data === null) {
+				// A local copy removed after an earlier offload is not a failure
+				// when R2 already holds the same key. Skipping lets a re-offload
+				// sync sub-sizes added later without needing the removed originals.
+				if ($this->fileReader === null && $previousMeta
+					&& in_array($key, $this->keysFromMeta($previousMeta), true)) {
+					continue;
+				}
+
 				error_log("[ImgPress R2] Could not read file: {$path} (attachment {$attachmentId}, size: {$sizeName})");
 				$this->markUploadFailed($attachmentId);
 				return false;

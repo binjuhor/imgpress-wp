@@ -255,7 +255,8 @@ class R2_Bulk
 
 	/**
 	 * Get IDs of attachments pending offload to R2.
-	 * A file is pending if: _imgpress_r2 meta doesn't exist OR status != 'uploaded'.
+	 * A file is pending if: _imgpress_r2 meta doesn't exist, status != 'uploaded',
+	 * or the recorded sub-sizes do not cover the attachment's current metadata.
 	 *
 	 * @return array<int> Attachment post IDs
 	 */
@@ -268,37 +269,37 @@ class R2_Bulk
 			'fields'         => 'ids',
 		]);
 
-        return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
-            return !$this->isFullyOffloaded($id);
-        }));
-    }
+		return array_values(array_filter(array_map('intval', $query->posts), function (int $id): bool {
+			return !$this->isFullyOffloaded($id);
+		}));
+	}
 
-    /**
-     * An attachment is fully offloaded only when every sub-size recorded in its
-     * metadata also has an R2 object. A status of "uploaded" alone is not enough:
-     * an upload can succeed for the main file while sub-sizes are added later
-     * (for example by client-side media processing), leaving metadata that points
-     * at files R2 never received.
-     */
-    private function isFullyOffloaded(int $attachmentId): bool
-    {
-        $status = $this->uploader->getStatus($attachmentId);
+	/**
+	 * An attachment is fully offloaded only when every sub-size recorded in its
+	 * metadata also has an R2 object. A status of "uploaded" alone is not enough:
+	 * an upload can succeed for the main file while sub-sizes are added later
+	 * (for example by client-side media processing), leaving metadata that points
+	 * at files R2 never received.
+	 */
+	private function isFullyOffloaded(int $attachmentId): bool
+	{
+		$status = $this->uploader->getStatus($attachmentId);
 
-        if (!is_array($status) || ($status['status'] ?? '') !== 'uploaded') {
-            return false;
-        }
+		if (!is_array($status) || ($status['status'] ?? '') !== 'uploaded') {
+			return false;
+		}
 
-        $metadata  = wp_get_attachment_metadata($attachmentId);
-        $sizeNames = is_array($metadata) ? array_keys($metadata['sizes'] ?? []) : [];
+		$metadata  = wp_get_attachment_metadata($attachmentId);
+		$sizeNames = is_array($metadata) ? array_keys($metadata['sizes'] ?? []) : [];
 
-        if (!$sizeNames) {
-            return true;
-        }
+		if (!$sizeNames) {
+			return true;
+		}
 
-        $uploaded = is_array($status['sizes'] ?? null) ? array_keys($status['sizes']) : [];
+		$uploaded = is_array($status['sizes'] ?? null) ? array_keys($status['sizes']) : [];
 
-        return array_diff($sizeNames, $uploaded) === [];
-    }
+		return array_diff($sizeNames, $uploaded) === [];
+	}
 
 	private function getUploadedIds(): array
 	{
